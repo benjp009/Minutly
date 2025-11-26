@@ -17,9 +17,9 @@ class ScreenRecorder: NSObject, ObservableObject {
     @Published var isRecording = false
     @Published var lastRecordingPath: String?
     @Published var errorMessage: String?
-    
+
     @Published var recordings: [URL] = []
-    
+
     private var stream: SCStream?
     private var assetWriter: AVAssetWriter?
     private var audioInput: AVAssetWriterInput?
@@ -27,9 +27,15 @@ class ScreenRecorder: NSObject, ObservableObject {
     // Microphone recorder
     private var micRecorder: AVAudioRecorder?
     private var micTempURL: URL?
-    
 
-    
+    // Transcription service
+    let transcriptionService: TranscriptionService
+
+    override init() {
+        self.transcriptionService = TranscriptionService()
+        super.init()
+    }
+
     // Configure audio session for mic recording (macOS)
     private func setupAudioSession() {
         #if os(macOS)
@@ -348,7 +354,12 @@ class ScreenRecorder: NSObject, ObservableObject {
     
     func deleteRecording(at url: URL) {
         do {
+            // Delete the audio file
             try FileManager.default.removeItem(at: url)
+
+            // Also delete associated transcription if it exists
+            try? transcriptionService.deleteTranscription(for: url)
+
             fetchRecordings()
         } catch {
             print("Error deleting recording: \(error)")
@@ -359,15 +370,25 @@ class ScreenRecorder: NSObject, ObservableObject {
     func renameRecording(from oldURL: URL, to newName: String) {
         let fileManager = FileManager.default
         let directory = oldURL.deletingLastPathComponent()
-        
+
         // Use the name exactly as typed
         let newFileName = "\(newName).wav"
         let newURL = directory.appendingPathComponent(newFileName)
-        
+
         print("📝 Renaming \(oldURL.lastPathComponent) to \(newFileName)")
-        
+
         do {
+            // Rename the audio file
             try fileManager.moveItem(at: oldURL, to: newURL)
+
+            // Rename associated transcription if it exists
+            if transcriptionService.transcriptionExists(for: oldURL) {
+                if let oldTranscription = transcriptionService.loadTranscription(for: oldURL) {
+                    try? transcriptionService.deleteTranscription(for: oldURL)
+                    _ = try? transcriptionService.saveTranscription(oldTranscription, for: newURL)
+                }
+            }
+
             print("✅ Rename successful")
             fetchRecordings()
         } catch {

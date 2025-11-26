@@ -11,18 +11,39 @@ import AVFoundation
 struct ContentView: View {
     @StateObject private var recorder = ScreenRecorder()
     @State private var showPermissionAlert = false
-    
+    @State private var showSettings = false
+
     var body: some View {
         VStack(spacing: 24) {
-            // App Title
-            VStack(spacing: 8) {
-                Image(systemName: "record.circle.fill")
-                    .font(.system(size: 60))
-                    .foregroundStyle(recorder.isRecording ? .red : .primary)
-                
-                Text("Minutly")
-                    .font(.title)
-                    .fontWeight(.bold)
+            // App Title with Settings button
+            HStack {
+                Spacer()
+
+                VStack(spacing: 8) {
+                    Image(systemName: "record.circle.fill")
+                        .font(.system(size: 60))
+                        .foregroundStyle(recorder.isRecording ? .red : .primary)
+
+                    Text("Minutly")
+                        .font(.title)
+                        .fontWeight(.bold)
+                }
+
+                Spacer()
+
+                VStack {
+                    Button(action: {
+                        showSettings = true
+                    }) {
+                        Image(systemName: "gearshape.fill")
+                            .font(.title2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Settings")
+
+                    Spacer()
+                }
             }
             .padding(.top)
             
@@ -90,7 +111,8 @@ struct ContentView: View {
                                     },
                                     onRename: { newName in
                                         recorder.renameRecording(from: url, to: newName)
-                                    }
+                                    },
+                                    transcriptionService: recorder.transcriptionService
                                 )
                             }
                         }
@@ -119,6 +141,9 @@ struct ContentView: View {
         .frame(minWidth: 400, minHeight: 600)
         .onAppear {
             recorder.fetchRecordings()
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
         }
     }
 }

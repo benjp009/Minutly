@@ -7,11 +7,16 @@
 
 import SwiftUI
 import AVFoundation
+import EventKit
 
 struct ContentView: View {
     @StateObject private var recorder = ScreenRecorder()
+    @StateObject private var calendarMonitor = CalendarMonitorService()
     @State private var showPermissionAlert = false
     @State private var showSettings = false
+    @State private var showMeetingAlert = false
+    @State private var detectedMeeting: String = ""
+    @AppStorage("enableMeetingDetection") private var enableMeetingDetection = false
 
     var body: some View {
         VStack(spacing: 24) {
@@ -141,9 +146,48 @@ struct ContentView: View {
         .frame(minWidth: 400, minHeight: 600)
         .onAppear {
             recorder.fetchRecordings()
+
+            // Set up calendar monitoring callback
+            calendarMonitor.onMeetingDetected = { meeting in
+                Task { @MainActor in
+                    let meetingTitle = meeting.title ?? "Untitled Meeting"
+                    self.detectedMeeting = meetingTitle
+                    self.showMeetingAlert = true
+
+                    // Start pre-buffering with meeting title
+                    await recorder.startPreBuffering(meetingTitle: meetingTitle)
+                }
+            }
+
+            // Set up notification actions
+            calendarMonitor.setupNotificationActions()
+
+            // Start monitoring if enabled
+            if enableMeetingDetection {
+                Task {
+                    await calendarMonitor.startMonitoring()
+                }
+            }
+        }
+        .onDisappear {
+            calendarMonitor.stopMonitoring()
         }
         .sheet(isPresented: $showSettings) {
             SettingsView()
+        }
+        .alert("Meeting Starting", isPresented: $showMeetingAlert) {
+            Button("Start Recording") {
+                Task {
+                    await recorder.confirmRecordingFromPreBuffer()
+                }
+            }
+            Button("Ignore", role: .cancel) {
+                Task {
+                    await recorder.cancelPreBuffer()
+                }
+            }
+        } message: {
+            Text("\(detectedMeeting)\n\nThe last 30 seconds will be included in the recording.")
         }
     }
 }

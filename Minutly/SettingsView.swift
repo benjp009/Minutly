@@ -12,7 +12,10 @@ struct SettingsView: View {
     @AppStorage("assemblyAI_APIKey") private var assemblyAIKey: String = ""
     @AppStorage("openAI_APIKey") private var openAIKey: String = ""
     @AppStorage("transcriptionProvider") private var transcriptionProvider: String = "apple"
+    @AppStorage("enableMeetingDetection") private var enableMeetingDetection = false
+    @AppStorage("enableMenuBarMode") private var enableMenuBarMode = false
     @State private var showAPIKeyInfo = false
+    @State private var showRestartAlert = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -39,6 +42,79 @@ struct SettingsView: View {
             Divider()
 
             Form {
+            Section(header: Text("General")) {
+                Toggle("Show in Menu Bar only", isOn: $enableMenuBarMode)
+                    .onChange(of: enableMenuBarMode) { _, _ in
+                        showRestartAlert = true
+                    }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "menubar.rectangle")
+                            .foregroundStyle(.purple)
+                        Text("Menu Bar Mode")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("• App runs in the background from menu bar")
+                        Text("• Perfect for automatic meeting detection")
+                        Text("• Click menu bar icon to access recordings")
+                        Text("• Requires app restart to take effect")
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+
+                    if enableMenuBarMode {
+                        HStack {
+                            Image(systemName: "info.circle.fill")
+                                .foregroundStyle(.orange)
+                            Text("Please restart the app to enable menu bar mode")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
+                        .padding(.top, 4)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+
+            Section(header: Text("Meeting Detection")) {
+                Toggle("Auto-detect meetings from Calendar", isOn: $enableMeetingDetection)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "calendar.badge.clock")
+                            .foregroundStyle(.blue)
+                        Text("How it works")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("• Monitors your macOS Calendar for upcoming meetings")
+                        Text("• Shows notification 2 minutes before meeting starts")
+                        Text("• Starts 30-second pre-buffer when you confirm")
+                        Text("• Includes the last 30 seconds in your recording")
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+
+                    if enableMeetingDetection {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                            Text("Meeting detection enabled")
+                                .font(.caption)
+                                .foregroundStyle(.green)
+                        }
+                        .padding(.top, 4)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+
             Section {
                 Text("Transcription Settings")
                     .font(.title2)
@@ -199,6 +275,11 @@ struct SettingsView: View {
 
         }
         .frame(width: 600, height: 600)
+        .alert("Restart Required", isPresented: $showRestartAlert) {
+            Button("OK") {}
+        } message: {
+            Text("Please restart Minutly for the menu bar mode change to take effect.")
+        }
     }
 }
 

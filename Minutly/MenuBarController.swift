@@ -44,13 +44,28 @@ class MenuBarController: ObservableObject {
     }
 
     @objc private func handleClick(_ sender: NSStatusBarButton) {
-        showMenu()
+        guard let event = NSApp.currentEvent else { return }
+
+        if event.type == .rightMouseUp {
+            showMenu()
+        } else {
+            toggleRecording()
+        }
+    }
+
+    private func toggleRecording() {
+        guard let recorder = recorder else { return }
+
+        Task { @MainActor in
+            if recorder.isRecording {
+                await recorder.stopRecording()
+            } else if !recorder.isPreBuffering {
+                await recorder.startRecording()
+            }
+        }
     }
 
     private func showMenu() {
-        let isRecording = recorder?.isRecording ?? false
-        let isPreBuffering = recorder?.isPreBuffering ?? false
-        let recordings = recorder?.recordings ?? []
         let menu = NSMenu()
 
         // Open App
@@ -58,40 +73,15 @@ class MenuBarController: ObservableObject {
         openAppItem.target = self
         menu.addItem(openAppItem)
 
-        // Recording controls
-        let startItem = NSMenuItem(title: "Start Recording", action: #selector(handleStartRecording), keyEquivalent: "")
-        startItem.target = self
-        startItem.isEnabled = !isRecording && !isPreBuffering
-        menu.addItem(startItem)
-
-        let stopItem = NSMenuItem(title: "Stop Recording", action: #selector(handleStopRecording), keyEquivalent: "")
-        stopItem.target = self
-        stopItem.isEnabled = isRecording || isPreBuffering
-        menu.addItem(stopItem)
-
         menu.addItem(NSMenuItem.separator())
 
-        // Latest recording shortcut
-        if let latestRecording = recordings.first {
-            let fileName = latestRecording.deletingPathExtension().lastPathComponent
-            let lastItem = NSMenuItem(title: "Last Recording: \(fileName)", action: #selector(handleRecordingSelected(_:)), keyEquivalent: "")
-            lastItem.target = self
-            lastItem.representedObject = latestRecording
-            menu.addItem(lastItem)
-        } else {
-            let placeholder = NSMenuItem(title: "No recordings yet", action: nil, keyEquivalent: "")
-            placeholder.isEnabled = false
-            menu.addItem(placeholder)
-        }
-
-        // Additional recordings list (excluding the latest already shown)
-        if recordings.count > 1 {
-            menu.addItem(NSMenuItem.separator())
-            let recordingsHeader = NSMenuItem(title: "Other Recordings", action: nil, keyEquivalent: "")
+        // Recordings section
+        if let recordings = recorder?.recordings, !recordings.isEmpty {
+            let recordingsHeader = NSMenuItem(title: "Recordings", action: nil, keyEquivalent: "")
             recordingsHeader.isEnabled = false
             menu.addItem(recordingsHeader)
 
-            for recording in recordings.dropFirst().prefix(9) {
+            for recording in recordings.prefix(10) {
                 let fileName = recording.deletingPathExtension().lastPathComponent
                 let item = NSMenuItem(title: fileName, action: #selector(handleRecordingSelected(_:)), keyEquivalent: "")
                 item.target = self
@@ -100,17 +90,16 @@ class MenuBarController: ObservableObject {
             }
 
             if recordings.count > 10 {
-                let remaining = recordings.count - 10
-                let moreItem = NSMenuItem(title: "... and \(remaining) more", action: #selector(handleOpenApp), keyEquivalent: "")
+                let moreItem = NSMenuItem(title: "... and \(recordings.count - 10) more", action: #selector(handleOpenApp), keyEquivalent: "")
                 moreItem.target = self
                 menu.addItem(moreItem)
             }
+
+            menu.addItem(NSMenuItem.separator())
         }
 
-        menu.addItem(NSMenuItem.separator())
-
         // Quit
-        let quitItem = NSMenuItem(title: "Turn Off Minutly", action: #selector(handleQuit), keyEquivalent: "q")
+        let quitItem = NSMenuItem(title: "Quit Minutly", action: #selector(handleQuit), keyEquivalent: "q")
         quitItem.target = self
         menu.addItem(quitItem)
 
@@ -118,24 +107,6 @@ class MenuBarController: ObservableObject {
         statusItem?.menu = menu
         statusItem?.button?.performClick(nil)
         statusItem?.menu = nil
-    }
-
-    @objc private func handleStartRecording() {
-        guard let recorder = recorder else { return }
-        Task { @MainActor in
-            await recorder.startRecording()
-        }
-    }
-
-    @objc private func handleStopRecording() {
-        guard let recorder = recorder else { return }
-        Task { @MainActor in
-            if recorder.isRecording {
-                await recorder.stopRecording()
-            } else if recorder.isPreBuffering {
-                await recorder.cancelPreBuffer()
-            }
-        }
     }
 
     @objc private func handleOpenApp() {

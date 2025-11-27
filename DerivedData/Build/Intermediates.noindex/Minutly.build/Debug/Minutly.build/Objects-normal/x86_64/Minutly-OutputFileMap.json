@@ -1,0 +1,149 @@
+{
+  "" : {
+    "diagnostics" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/Minutly-primary.dia",
+    "emit-module-dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/Minutly-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/Minutly-primary-emit-module.dia",
+    "pch" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/Minutly-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/Minutly-primary.swiftdeps"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "const-values" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/GeneratedAssetSymbols.swiftconstvalues",
+    "dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/GeneratedAssetSymbols.d",
+    "diagnostics" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/GeneratedAssetSymbols.dia",
+    "index-unit-output-path" : "/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/GeneratedAssetSymbols.o",
+    "swift-dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/GeneratedAssetSymbols.swiftdeps",
+    "swiftmodule" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/GeneratedAssetSymbols~partial.swiftmodule"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/AssemblyAIService.swift" : {
+    "const-values" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/AssemblyAIService.swiftconstvalues",
+    "dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/AssemblyAIService.d",
+    "diagnostics" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/AssemblyAIService.dia",
+    "index-unit-output-path" : "/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/AssemblyAIService.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/AssemblyAIService.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/AssemblyAIService.o",
+    "swift-dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/AssemblyAIService.swiftdeps",
+    "swiftmodule" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/AssemblyAIService~partial.swiftmodule"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/AudioPlayerView.swift" : {
+    "const-values" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/AudioPlayerView.swiftconstvalues",
+    "dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/AudioPlayerView.d",
+    "diagnostics" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/AudioPlayerView.dia",
+    "index-unit-output-path" : "/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/AudioPlayerView.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/AudioPlayerView.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/AudioPlayerView.o",
+    "swift-dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/AudioPlayerView.swiftdeps",
+    "swiftmodule" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/AudioPlayerView~partial.swiftmodule"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/CalendarMonitorService.swift" : {
+    "const-values" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/CalendarMonitorService.swiftconstvalues",
+    "dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/CalendarMonitorService.d",
+    "diagnostics" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/CalendarMonitorService.dia",
+    "index-unit-output-path" : "/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/CalendarMonitorService.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/CalendarMonitorService.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/CalendarMonitorService.o",
+    "swift-dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/CalendarMonitorService.swiftdeps",
+    "swiftmodule" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/CalendarMonitorService~partial.swiftmodule"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/ContentView.swift" : {
+    "const-values" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/ContentView.swiftconstvalues",
+    "dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/ContentView.d",
+    "diagnostics" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/ContentView.dia",
+    "index-unit-output-path" : "/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/ContentView.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/ContentView.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/ContentView.o",
+    "swift-dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/ContentView.swiftdeps",
+    "swiftmodule" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/ContentView~partial.swiftmodule"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/MenuBarController.swift" : {
+    "const-values" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/MenuBarController.swiftconstvalues",
+    "dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/MenuBarController.d",
+    "diagnostics" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/MenuBarController.dia",
+    "index-unit-output-path" : "/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/MenuBarController.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/MenuBarController.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/MenuBarController.o",
+    "swift-dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/MenuBarController.swiftdeps",
+    "swiftmodule" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/MenuBarController~partial.swiftmodule"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/MinutlyApp.swift" : {
+    "const-values" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/MinutlyApp.swiftconstvalues",
+    "dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/MinutlyApp.d",
+    "diagnostics" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/MinutlyApp.dia",
+    "index-unit-output-path" : "/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/MinutlyApp.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/MinutlyApp.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/MinutlyApp.o",
+    "swift-dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/MinutlyApp.swiftdeps",
+    "swiftmodule" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/MinutlyApp~partial.swiftmodule"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/OpenAISummarizationService.swift" : {
+    "const-values" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/OpenAISummarizationService.swiftconstvalues",
+    "dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/OpenAISummarizationService.d",
+    "diagnostics" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/OpenAISummarizationService.dia",
+    "index-unit-output-path" : "/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/OpenAISummarizationService.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/OpenAISummarizationService.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/OpenAISummarizationService.o",
+    "swift-dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/OpenAISummarizationService.swiftdeps",
+    "swiftmodule" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/OpenAISummarizationService~partial.swiftmodule"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/RecordingRow.swift" : {
+    "const-values" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/RecordingRow.swiftconstvalues",
+    "dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/RecordingRow.d",
+    "diagnostics" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/RecordingRow.dia",
+    "index-unit-output-path" : "/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/RecordingRow.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/RecordingRow.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/RecordingRow.o",
+    "swift-dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/RecordingRow.swiftdeps",
+    "swiftmodule" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/RecordingRow~partial.swiftmodule"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/ScreenRecorder.swift" : {
+    "const-values" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/ScreenRecorder.swiftconstvalues",
+    "dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/ScreenRecorder.d",
+    "diagnostics" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/ScreenRecorder.dia",
+    "index-unit-output-path" : "/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/ScreenRecorder.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/ScreenRecorder.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/ScreenRecorder.o",
+    "swift-dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/ScreenRecorder.swiftdeps",
+    "swiftmodule" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/ScreenRecorder~partial.swiftmodule"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/SettingsView.swift" : {
+    "const-values" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/SettingsView.swiftconstvalues",
+    "dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/SettingsView.d",
+    "diagnostics" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/SettingsView.dia",
+    "index-unit-output-path" : "/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/SettingsView.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/SettingsView.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/SettingsView.o",
+    "swift-dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/SettingsView.swiftdeps",
+    "swiftmodule" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/SettingsView~partial.swiftmodule"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/SummaryView.swift" : {
+    "const-values" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/SummaryView.swiftconstvalues",
+    "dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/SummaryView.d",
+    "diagnostics" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/SummaryView.dia",
+    "index-unit-output-path" : "/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/SummaryView.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/SummaryView.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/SummaryView.o",
+    "swift-dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/SummaryView.swiftdeps",
+    "swiftmodule" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/SummaryView~partial.swiftmodule"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/TranscriptionService.swift" : {
+    "const-values" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/TranscriptionService.swiftconstvalues",
+    "dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/TranscriptionService.d",
+    "diagnostics" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/TranscriptionService.dia",
+    "index-unit-output-path" : "/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/TranscriptionService.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/TranscriptionService.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/TranscriptionService.o",
+    "swift-dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/TranscriptionService.swiftdeps",
+    "swiftmodule" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/TranscriptionService~partial.swiftmodule"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/WaveformView.swift" : {
+    "const-values" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/WaveformView.swiftconstvalues",
+    "dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/WaveformView.d",
+    "diagnostics" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/WaveformView.dia",
+    "index-unit-output-path" : "/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/WaveformView.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/WaveformView.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/WaveformView.o",
+    "swift-dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/WaveformView.swiftdeps",
+    "swiftmodule" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/Minutly.build/Debug/Minutly.build/Objects-normal/x86_64/WaveformView~partial.swiftmodule"
+  }
+}

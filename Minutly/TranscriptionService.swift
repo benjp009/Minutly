@@ -18,6 +18,7 @@ class TranscriptionService {
     private var recognizer: SFSpeechRecognizer?
     private var assemblyAIService: AssemblyAIService?
     private var openAIService: OpenAISummarizationService?
+    private var openAITranscriptionService: OpenAITranscriptionService?
 
     init() {
         // Initialize with French locale
@@ -42,6 +43,7 @@ class TranscriptionService {
         // Initialize OpenAI if API key is available
         if let apiKey = UserDefaults.standard.string(forKey: "openAI_APIKey"), !apiKey.isEmpty {
             openAIService = OpenAISummarizationService(apiKey: apiKey)
+            openAITranscriptionService = OpenAITranscriptionService(apiKey: apiKey)
             print("✅ OpenAI service initialized")
         }
     }
@@ -65,6 +67,11 @@ class TranscriptionService {
                 openAIService = OpenAISummarizationService(apiKey: key)
             } else {
                 openAIService?.updateAPIKey(key)
+            }
+            if openAITranscriptionService == nil {
+                openAITranscriptionService = OpenAITranscriptionService(apiKey: key)
+            } else {
+                openAITranscriptionService?.updateAPIKey(key)
             }
             print("✅ OpenAI API key updated")
         }
@@ -107,6 +114,8 @@ class TranscriptionService {
 
         if provider == "assemblyai" {
             return try await transcribeWithAssemblyAI(audioURL: audioURL)
+        } else if provider == "openai" {
+            return try await transcribeWithOpenAI(audioURL: audioURL)
         } else {
             return try await transcribeWithApple(audioURL: audioURL)
         }
@@ -153,6 +162,43 @@ class TranscriptionService {
         } catch {
             print("❌ AssemblyAI transcription failed: \(error.localizedDescription)")
             errorMessage = "AssemblyAI failed: \(error.localizedDescription)"
+            throw error
+        }
+    }
+
+    private func transcribeWithOpenAI(audioURL: URL) async throws -> String {
+        print("🎙️ Using OpenAI Whisper for transcription")
+
+        guard let apiKey = UserDefaults.standard.string(forKey: "openAI_APIKey"), !apiKey.isEmpty else {
+            throw OpenAIError.invalidAPIKey
+        }
+
+        if openAITranscriptionService == nil {
+            openAITranscriptionService = OpenAITranscriptionService(apiKey: apiKey)
+        }
+
+        guard let service = openAITranscriptionService else {
+            throw OpenAIError.invalidAPIKey
+        }
+
+        isTranscribing = true
+        progress = 0.0
+        errorMessage = nil
+
+        defer { isTranscribing = false }
+
+        do {
+            let transcript = try await service.transcribe(audioURL: audioURL, languageCode: "fr") { [weak self] progressValue, status in
+                DispatchQueue.main.async {
+                    self?.progress = progressValue
+                    self?.statusMessage = status
+                    print("📊 OpenAI Progress: \(Int(progressValue * 100))% - \(status)")
+                }
+            }
+            return transcript
+        } catch {
+            print("❌ OpenAI transcription failed: \(error.localizedDescription)")
+            errorMessage = "OpenAI failed: \(error.localizedDescription)"
             throw error
         }
     }
@@ -358,6 +404,69 @@ class TranscriptionService {
 
         if fileManager.fileExists(atPath: transcriptionURL.path) {
             try fileManager.removeItem(at: transcriptionURL)
+        }
+    }
+
+    // MARK: - Summary Persistence
+
+    func saveSummary(_ summary: ConversationSummary, for audioURL: URL) throws -> URL {
+        let fileManager = FileManager.default
+        guard let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            throw TranscriptionError.saveFailed
+        }
+
+        let audioName = audioURL.deletingPathExtension().lastPathComponent
+        let summaryFileName = "\(audioName)_summary.json"
+        let summaryURL = documentsURL.appendingPathComponent(summaryFileName)
+
+        let data = try JSONEncoder().encode(summary)
+        try data.write(to: summaryURL)
+        return summaryURL
+    }
+
+    func loadSummary(for audioURL: URL) -> ConversationSummary? {
+        let fileManager = FileManager.default
+        guard let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+
+        let audioName = audioURL.deletingPathExtension().lastPathComponent
+        let summaryFileName = "\(audioName)_summary.json"
+        let summaryURL = documentsURL.appendingPathComponent(summaryFileName)
+
+        guard fileManager.fileExists(atPath: summaryURL.path),
+              let data = try? Data(contentsOf: summaryURL) else {
+            return nil
+        }
+
+        return try? JSONDecoder().decode(ConversationSummary.self, from: data)
+    }
+
+    func summaryExists(for audioURL: URL) -> Bool {
+        let fileManager = FileManager.default
+        guard let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            return false
+        }
+
+        let audioName = audioURL.deletingPathExtension().lastPathComponent
+        let summaryFileName = "\(audioName)_summary.json"
+        let summaryURL = documentsURL.appendingPathComponent(summaryFileName)
+
+        return fileManager.fileExists(atPath: summaryURL.path)
+    }
+
+    func deleteSummary(for audioURL: URL) throws {
+        let fileManager = FileManager.default
+        guard let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            return
+        }
+
+        let audioName = audioURL.deletingPathExtension().lastPathComponent
+        let summaryFileName = "\(audioName)_summary.json"
+        let summaryURL = documentsURL.appendingPathComponent(summaryFileName)
+
+        if fileManager.fileExists(atPath: summaryURL.path) {
+            try fileManager.removeItem(at: summaryURL)
         }
     }
 }

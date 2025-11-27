@@ -133,7 +133,7 @@ class CalendarMonitorService: ObservableObject {
                 if !notifiedMeetings.contains(meetingID) {
                     notifiedMeetings.insert(meetingID)
                     let meetingTitle = nextMeeting.title ?? "Untitled"
-                    print("📅 Meeting detected: \(meetingTitle) at \(nextMeeting.startDate)")
+                    print("📅 Meeting detected: \(meetingTitle) at \(String(describing: nextMeeting.startDate))")
 
                     upcomingMeeting = nextMeeting
 

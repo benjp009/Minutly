@@ -276,6 +276,11 @@ class ScreenRecorder: NSObject, ObservableObject {
     
     // Start recording system audio
     func startRecording(meetingTitle: String? = nil) async {
+        guard !isRecording else {
+            print("⚠️ Already recording, start request ignored.")
+            return
+        }
+
         do {
             // Store meeting title for filename
             currentMeetingTitle = meetingTitle
@@ -421,7 +426,7 @@ class ScreenRecorder: NSObject, ObservableObject {
             print("⚠️ Not recording, returning early")
             return
         }
-        
+
         print("✅ Proceeding with stop recording")
         
         // Ensure we always set isRecording to false when this function completes
@@ -453,8 +458,14 @@ class ScreenRecorder: NSObject, ObservableObject {
             micRecorder?.stop()
             print("✅ Mic recorder stopped")
             
+            // Capture the temporary URLs so we can safely clear the stored properties before awaiting work
+            let systemURL = tempURL
+            let microphoneURL = micTempURL
+            tempURL = nil
+            micTempURL = nil
+
             // Mix system and mic audio into a single file
-            if let sysURL = tempURL, let micURL = micTempURL {
+            if let sysURL = systemURL, let micURL = microphoneURL {
                 print("🔀 Starting audio mixing...")
                 print("   System URL: \(sysURL.path)")
                 print("   Mic URL: \(micURL.path)")
@@ -490,16 +501,16 @@ class ScreenRecorder: NSObject, ObservableObject {
                     }
                 }
             } else {
-                print("⚠️ Missing URLs - sysURL: \(tempURL?.path ?? "nil"), micURL: \(micTempURL?.path ?? "nil")")
+                print("⚠️ Missing URLs - sysURL: \(systemURL?.path ?? "nil"), micURL: \(microphoneURL?.path ?? "nil")")
             }
             
             // Clean up temporary files
             print("🧹 Cleaning up temporary files...")
-            if let sysURL = tempURL {
+            if let sysURL = systemURL {
                 try? FileManager.default.removeItem(at: sysURL)
                 print("   ✅ Removed system temp file")
             }
-            if let micURL = micTempURL {
+            if let micURL = microphoneURL {
                 try? FileManager.default.removeItem(at: micURL)
                 print("   ✅ Removed mic temp file")
             }
@@ -538,8 +549,9 @@ class ScreenRecorder: NSObject, ObservableObject {
             // Delete the audio file
             try FileManager.default.removeItem(at: url)
 
-            // Also delete associated transcription if it exists
+            // Also delete associated transcription/summary if they exist
             try? transcriptionService.deleteTranscription(for: url)
+            try? transcriptionService.deleteSummary(for: url)
 
             fetchRecordings()
         } catch {
@@ -567,6 +579,14 @@ class ScreenRecorder: NSObject, ObservableObject {
                 if let oldTranscription = transcriptionService.loadTranscription(for: oldURL) {
                     try? transcriptionService.deleteTranscription(for: oldURL)
                     _ = try? transcriptionService.saveTranscription(oldTranscription, for: newURL)
+                }
+            }
+
+            // Rename summary if it exists
+            if transcriptionService.summaryExists(for: oldURL) {
+                if let oldSummary = transcriptionService.loadSummary(for: oldURL) {
+                    try? transcriptionService.deleteSummary(for: oldURL)
+                    _ = try? transcriptionService.saveSummary(oldSummary, for: newURL)
                 }
             }
 

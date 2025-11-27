@@ -1,0 +1,16 @@
+{
+  "source": "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/MinutlyApp.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Settings...",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 63
+        }
+      }
+    ]
+  },
+  "version": 1
+}

@@ -1,0 +1,170 @@
+//
+//  MenuBarController.swift
+//  Minutly
+//
+//  Created by Benjamin Patin on 26/11/2025.
+//
+
+import SwiftUI
+import AppKit
+import Combine
+
+@MainActor
+class MenuBarController: ObservableObject {
+    private var statusItem: NSStatusItem?
+    private var eventMonitor: Any?
+    @Published var isMenuBarMode = false
+    @Published var selectedRecordingURL: URL?
+
+    var recorder: ScreenRecorder?
+
+    func setupMenuBar() {
+        // Create status item in menu bar
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+
+        if let button = statusItem?.button {
+            // Use SF Symbol for the menu bar icon
+            button.image = NSImage(systemSymbolName: "waveform.circle.fill", accessibilityDescription: "Minutly")
+            button.action = #selector(handleClick(_:))
+            button.target = self
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        }
+
+        isMenuBarMode = true
+        print("✅ Menu bar icon created")
+    }
+
+    func removeMenuBar() {
+        if let statusItem = statusItem {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            self.statusItem = nil
+        }
+        isMenuBarMode = false
+        print("🗑️ Menu bar icon removed")
+    }
+
+    @objc private func handleClick(_ sender: NSStatusBarButton) {
+        guard let event = NSApp.currentEvent else { return }
+
+        if event.type == .rightMouseUp {
+            showMenu()
+        } else {
+            toggleRecording()
+        }
+    }
+
+    private func toggleRecording() {
+        guard let recorder = recorder else { return }
+
+        Task { @MainActor in
+            if recorder.isRecording {
+                await recorder.stopRecording()
+            } else if !recorder.isPreBuffering {
+                await recorder.startRecording()
+            }
+        }
+    }
+
+    private func showMenu() {
+        let menu = NSMenu()
+
+        // Open App
+        let openAppItem = NSMenuItem(title: "Open Minutly", action: #selector(handleOpenApp), keyEquivalent: "o")
+        openAppItem.target = self
+        menu.addItem(openAppItem)
+
+        menu.addItem(NSMenuItem.separator())
+
+        // Recordings section
+        if let recordings = recorder?.recordings, !recordings.isEmpty {
+            let recordingsHeader = NSMenuItem(title: "Recordings", action: nil, keyEquivalent: "")
+            recordingsHeader.isEnabled = false
+            menu.addItem(recordingsHeader)
+
+            for recording in recordings.prefix(10) {
+                let fileName = recording.deletingPathExtension().lastPathComponent
+                let item = NSMenuItem(title: fileName, action: #selector(handleRecordingSelected(_:)), keyEquivalent: "")
+                item.target = self
+                item.representedObject = recording
+                menu.addItem(item)
+            }
+
+            if recordings.count > 10 {
+                let moreItem = NSMenuItem(title: "... and \(recordings.count - 10) more", action: #selector(handleOpenApp), keyEquivalent: "")
+                moreItem.target = self
+                menu.addItem(moreItem)
+            }
+
+            menu.addItem(NSMenuItem.separator())
+        }
+
+        // Quit
+        let quitItem = NSMenuItem(title: "Quit Minutly", action: #selector(handleQuit), keyEquivalent: "q")
+        quitItem.target = self
+        menu.addItem(quitItem)
+
+        // Show menu at status item
+        statusItem?.menu = menu
+        statusItem?.button?.performClick(nil)
+        statusItem?.menu = nil
+    }
+
+    @objc private func handleOpenApp() {
+        openMainWindow()
+    }
+
+    @objc private func handleRecordingSelected(_ sender: NSMenuItem) {
+        guard let url = sender.representedObject as? URL else { return }
+        selectedRecordingURL = url
+        NotificationCenter.default.post(name: .openRecording, object: url)
+        openMainWindow()
+    }
+
+    @objc private func handleQuit() {
+        NSApp.terminate(nil)
+    }
+
+    private func openMainWindow() {
+        if let window = NSApp.windows.first {
+            window.makeKeyAndOrderFront(nil)
+        }
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func updateMenuBarIcon(isRecording: Bool, isPreBuffering: Bool) {
+        guard let button = statusItem?.button else { return }
+
+        if isRecording {
+            button.image = NSImage(systemSymbolName: "record.circle.fill", accessibilityDescription: "Recording")
+            button.image?.isTemplate = false
+            // Make it red
+            if let image = button.image {
+                let coloredImage = NSImage(size: image.size)
+                coloredImage.lockFocus()
+                NSColor.red.set()
+                image.draw(at: .zero, from: NSRect(origin: .zero, size: image.size), operation: .sourceOver, fraction: 1.0)
+                coloredImage.unlockFocus()
+                button.image = coloredImage
+            }
+        } else if isPreBuffering {
+            button.image = NSImage(systemSymbolName: "circlebadge.fill", accessibilityDescription: "Pre-buffering")
+            button.image?.isTemplate = false
+            // Make it orange
+            if let image = button.image {
+                let coloredImage = NSImage(size: image.size)
+                coloredImage.lockFocus()
+                NSColor.orange.set()
+                image.draw(at: .zero, from: NSRect(origin: .zero, size: image.size), operation: .sourceOver, fraction: 1.0)
+                coloredImage.unlockFocus()
+                button.image = coloredImage
+            }
+        } else {
+            button.image = NSImage(systemSymbolName: "waveform.circle.fill", accessibilityDescription: "Minutly")
+            button.image?.isTemplate = true
+        }
+    }
+
+    func setRecorder(_ recorder: ScreenRecorder) {
+        self.recorder = recorder
+    }
+}

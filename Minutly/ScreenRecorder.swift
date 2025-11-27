@@ -17,9 +17,12 @@ class ScreenRecorder: NSObject, ObservableObject {
     @Published var isRecording = false
     @Published var lastRecordingPath: String?
     @Published var errorMessage: String?
-    
+
     @Published var recordings: [URL] = []
-    
+
+    // Current meeting title (if recording from calendar event)
+    var currentMeetingTitle: String?
+
     private var stream: SCStream?
     private var assetWriter: AVAssetWriter?
     private var audioInput: AVAssetWriterInput?
@@ -27,9 +30,186 @@ class ScreenRecorder: NSObject, ObservableObject {
     // Microphone recorder
     private var micRecorder: AVAudioRecorder?
     private var micTempURL: URL?
-    
 
-    
+    // Transcription service
+    let transcriptionService: TranscriptionService
+
+    // Pre-buffering
+    @Published var isPreBuffering = false
+    private var preBufferData: [CMSampleBuffer] = []
+    private let preBufferDuration: TimeInterval = 30.0 // 30 seconds
+    private var preBufferQueue = DispatchQueue(label: "com.minutly.prebuffer")
+
+    override init() {
+        self.transcriptionService = TranscriptionService()
+        super.init()
+    }
+
+    // MARK: - Pre-buffering
+
+    func startPreBuffering(meetingTitle: String? = nil) async {
+        print("🔄 Starting pre-buffering (30 seconds)...")
+        currentMeetingTitle = meetingTitle
+        isPreBuffering = true
+        preBufferData.removeAll()
+
+        do {
+            // Get available content (displays)
+            let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+
+            guard let display = content.displays.first else {
+                errorMessage = "No display found"
+                return
+            }
+
+            // Create content filter for the main display
+            let filter = SCContentFilter(display: display, excludingWindows: [])
+
+            // Configure stream - minimal video settings as we only want audio
+            let config = SCStreamConfiguration()
+            config.width = 100
+            config.height = 100
+            config.minimumFrameInterval = CMTime(value: 1, timescale: 1)
+            config.capturesAudio = true
+            config.sampleRate = 48000
+            config.channelCount = 2
+
+            // Create and start stream
+            stream = SCStream(filter: filter, configuration: config, delegate: nil)
+
+            // Add stream output - ONLY audio
+            try stream?.addStreamOutput(self, type: .audio, sampleHandlerQueue: .global())
+
+            try await stream?.startCapture()
+
+            print("✅ Pre-buffering started")
+
+        } catch {
+            errorMessage = "Failed to start pre-buffering: \(error.localizedDescription)"
+            isPreBuffering = false
+        }
+    }
+
+    func confirmRecordingFromPreBuffer() async {
+        print("✅ User confirmed recording - saving pre-buffer...")
+
+        guard isPreBuffering else {
+            // If not pre-buffering, just start normal recording
+            await startRecording()
+            return
+        }
+
+        isPreBuffering = false
+        isRecording = true
+
+        // Continue with normal recording setup but include pre-buffer
+        await startRecordingWithPreBuffer()
+    }
+
+    func cancelPreBuffer() async {
+        print("❌ User cancelled - discarding pre-buffer...")
+        isPreBuffering = false
+        preBufferData.removeAll()
+
+        // Stop stream
+        try? await stream?.stopCapture()
+        stream = nil
+    }
+
+    private func startRecordingWithPreBuffer() async {
+        do {
+            // Set up temporary file output
+            let tempDir = FileManager.default.temporaryDirectory
+            let filename = generateFilename(meetingTitle: currentMeetingTitle)
+            let sysFileName = "\(filename)_sys.wav"
+            tempURL = tempDir.appendingPathComponent(sysFileName)
+
+            guard let tempURL = tempURL else {
+                errorMessage = "Failed to create temporary file path"
+                return
+            }
+
+            // Remove existing file if any
+            if FileManager.default.fileExists(atPath: tempURL.path) {
+                try? FileManager.default.removeItem(at: tempURL)
+            }
+
+            // Set up microphone temporary file
+            let micFileName = "\(filename)_mic.wav"
+            micTempURL = tempDir.appendingPathComponent(micFileName)
+
+            // Start microphone recording
+            let micSettings: [String: Any] = [
+                AVFormatIDKey: kAudioFormatLinearPCM,
+                AVSampleRateKey: 48000,
+                AVNumberOfChannelsKey: 2,
+                AVLinearPCMBitDepthKey: 16,
+                AVLinearPCMIsFloatKey: false,
+                AVLinearPCMIsBigEndianKey: false,
+                AVLinearPCMIsNonInterleaved: false
+            ]
+
+            if let micURL = micTempURL {
+                if FileManager.default.fileExists(atPath: micURL.path) {
+                    try FileManager.default.removeItem(at: micURL)
+                }
+
+                micRecorder = try AVAudioRecorder(url: micURL, settings: micSettings)
+                micRecorder?.delegate = self
+                _ = micRecorder?.prepareToRecord()
+                _ = micRecorder?.record()
+                print("✅ Microphone recording active")
+            }
+
+            // Create asset writer for WAV
+            assetWriter = try AVAssetWriter(outputURL: tempURL, fileType: .wav)
+
+            // Audio input settings for Linear PCM (WAV)
+            let audioSettings: [String: Any] = [
+                AVFormatIDKey: kAudioFormatLinearPCM,
+                AVSampleRateKey: 48000,
+                AVNumberOfChannelsKey: 2,
+                AVLinearPCMBitDepthKey: 16,
+                AVLinearPCMIsFloatKey: false,
+                AVLinearPCMIsBigEndianKey: false,
+                AVLinearPCMIsNonInterleaved: false
+            ]
+
+            audioInput = AVAssetWriterInput(mediaType: .audio, outputSettings: audioSettings)
+            audioInput?.expectsMediaDataInRealTime = true
+
+            if let audioInput = audioInput {
+                if assetWriter?.canAdd(audioInput) == true {
+                    assetWriter?.add(audioInput)
+                }
+            }
+
+            // Start writing
+            if assetWriter?.startWriting() == false {
+                errorMessage = "Failed to start writing: \(assetWriter?.error?.localizedDescription ?? "Unknown error")"
+                return
+            }
+
+            assetWriter?.startSession(atSourceTime: CMTime.zero)
+
+            // Write pre-buffered data first
+            print("💾 Writing \(preBufferData.count) pre-buffered samples...")
+            for sampleBuffer in preBufferData {
+                if let audioInput = audioInput, audioInput.isReadyForMoreMediaData {
+                    audioInput.append(sampleBuffer)
+                }
+            }
+            preBufferData.removeAll()
+
+            print("✅ Recording started with pre-buffer")
+            errorMessage = nil
+
+        } catch {
+            errorMessage = "Failed to start recording: \(error.localizedDescription)"
+            isRecording = false
+        }
+    }
+
     // Configure audio session for mic recording (macOS)
     private func setupAudioSession() {
         #if os(macOS)
@@ -95,23 +275,31 @@ class ScreenRecorder: NSObject, ObservableObject {
     }
     
     // Start recording system audio
-    func startRecording() async {
+    func startRecording(meetingTitle: String? = nil) async {
+        guard !isRecording else {
+            print("⚠️ Already recording, start request ignored.")
+            return
+        }
+
         do {
+            // Store meeting title for filename
+            currentMeetingTitle = meetingTitle
+
             // Check microphone permission first
             print("🔐 Checking microphone permission...")
             checkMicrophonePermission()
-            
+
             // Get available content (displays)
             let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-            
+
             guard let display = content.displays.first else {
                 errorMessage = "No display found"
                 return
             }
-            
+
             // Create content filter for the main display
             let filter = SCContentFilter(display: display, excludingWindows: [])
-            
+
             // Configure stream - minimal video settings as we only want audio
             let config = SCStreamConfiguration()
             config.width = 100
@@ -120,10 +308,11 @@ class ScreenRecorder: NSObject, ObservableObject {
             config.capturesAudio = true
             config.sampleRate = 48000
             config.channelCount = 2
-            
+
             // Set up temporary file output for system audio
             let tempDir = FileManager.default.temporaryDirectory
-            let sysFileName = "Minutly_Audio_\(formatDate()).wav"
+            let filename = generateFilename(meetingTitle: meetingTitle)
+            let sysFileName = "\(filename)_sys.wav"
             tempURL = tempDir.appendingPathComponent(sysFileName)
             
             guard let tempURL = tempURL else {
@@ -137,9 +326,9 @@ class ScreenRecorder: NSObject, ObservableObject {
             }
             
             // Set up microphone temporary file
-            let micFileName = "Minutly_Mic_\(formatDate()).wav"
+            let micFileName = "\(filename)_mic.wav"
             micTempURL = tempDir.appendingPathComponent(micFileName)
-            
+
             // Prepare mic recorder settings (same as system audio)
             let micSettings: [String: Any] = [
                 AVFormatIDKey: kAudioFormatLinearPCM,
@@ -237,7 +426,7 @@ class ScreenRecorder: NSObject, ObservableObject {
             print("⚠️ Not recording, returning early")
             return
         }
-        
+
         print("✅ Proceeding with stop recording")
         
         // Ensure we always set isRecording to false when this function completes
@@ -269,15 +458,24 @@ class ScreenRecorder: NSObject, ObservableObject {
             micRecorder?.stop()
             print("✅ Mic recorder stopped")
             
+            // Capture the temporary URLs so we can safely clear the stored properties before awaiting work
+            let systemURL = tempURL
+            let microphoneURL = micTempURL
+            tempURL = nil
+            micTempURL = nil
+
             // Mix system and mic audio into a single file
-            if let sysURL = tempURL, let micURL = micTempURL {
+            if let sysURL = systemURL, let micURL = microphoneURL {
                 print("🔀 Starting audio mixing...")
                 print("   System URL: \(sysURL.path)")
                 print("   Mic URL: \(micURL.path)")
                 
                 let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-                let finalFileName = "Recording_\(formatDate()).wav"
+                let finalFileName = "\(generateFilename(meetingTitle: currentMeetingTitle)).wav"
                 let destinationURL = documentsURL.appendingPathComponent(finalFileName)
+
+                // Clear meeting title after using it
+                currentMeetingTitle = nil
                 
                 print("   Destination: \(destinationURL.path)")
                 
@@ -303,16 +501,16 @@ class ScreenRecorder: NSObject, ObservableObject {
                     }
                 }
             } else {
-                print("⚠️ Missing URLs - sysURL: \(tempURL?.path ?? "nil"), micURL: \(micTempURL?.path ?? "nil")")
+                print("⚠️ Missing URLs - sysURL: \(systemURL?.path ?? "nil"), micURL: \(microphoneURL?.path ?? "nil")")
             }
             
             // Clean up temporary files
             print("🧹 Cleaning up temporary files...")
-            if let sysURL = tempURL {
+            if let sysURL = systemURL {
                 try? FileManager.default.removeItem(at: sysURL)
                 print("   ✅ Removed system temp file")
             }
-            if let micURL = micTempURL {
+            if let micURL = microphoneURL {
                 try? FileManager.default.removeItem(at: micURL)
                 print("   ✅ Removed mic temp file")
             }
@@ -348,7 +546,13 @@ class ScreenRecorder: NSObject, ObservableObject {
     
     func deleteRecording(at url: URL) {
         do {
+            // Delete the audio file
             try FileManager.default.removeItem(at: url)
+
+            // Also delete associated transcription/summary if they exist
+            try? transcriptionService.deleteTranscription(for: url)
+            try? transcriptionService.deleteSummary(for: url)
+
             fetchRecordings()
         } catch {
             print("Error deleting recording: \(error)")
@@ -359,15 +563,33 @@ class ScreenRecorder: NSObject, ObservableObject {
     func renameRecording(from oldURL: URL, to newName: String) {
         let fileManager = FileManager.default
         let directory = oldURL.deletingLastPathComponent()
-        
+
         // Use the name exactly as typed
         let newFileName = "\(newName).wav"
         let newURL = directory.appendingPathComponent(newFileName)
-        
+
         print("📝 Renaming \(oldURL.lastPathComponent) to \(newFileName)")
-        
+
         do {
+            // Rename the audio file
             try fileManager.moveItem(at: oldURL, to: newURL)
+
+            // Rename associated transcription if it exists
+            if transcriptionService.transcriptionExists(for: oldURL) {
+                if let oldTranscription = transcriptionService.loadTranscription(for: oldURL) {
+                    try? transcriptionService.deleteTranscription(for: oldURL)
+                    _ = try? transcriptionService.saveTranscription(oldTranscription, for: newURL)
+                }
+            }
+
+            // Rename summary if it exists
+            if transcriptionService.summaryExists(for: oldURL) {
+                if let oldSummary = transcriptionService.loadSummary(for: oldURL) {
+                    try? transcriptionService.deleteSummary(for: oldURL)
+                    _ = try? transcriptionService.saveSummary(oldSummary, for: newURL)
+                }
+            }
+
             print("✅ Rename successful")
             fetchRecordings()
         } catch {
@@ -381,6 +603,30 @@ class ScreenRecorder: NSObject, ObservableObject {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
         return formatter.string(from: Date())
+    }
+
+    // Generate filename with optional meeting title
+    private func generateFilename(meetingTitle: String?) -> String {
+        let dateString = formatDate()
+
+        if let title = meetingTitle, !title.isEmpty {
+            // Clean the meeting title for filename
+            let cleanTitle = title
+                .replacingOccurrences(of: "/", with: "-")
+                .replacingOccurrences(of: ":", with: "-")
+                .replacingOccurrences(of: "\\", with: "-")
+                .replacingOccurrences(of: "|", with: "-")
+                .replacingOccurrences(of: "?", with: "")
+                .replacingOccurrences(of: "*", with: "")
+                .replacingOccurrences(of: "<", with: "")
+                .replacingOccurrences(of: ">", with: "")
+                .replacingOccurrences(of: "\"", with: "")
+                .prefix(50) // Limit to 50 characters
+
+            return "\(dateString)_\(cleanTitle)"
+        } else {
+            return "Recording_\(dateString)"
+        }
     }
     
     // MARK: - Audio Mixing
@@ -476,15 +722,36 @@ extension ScreenRecorder: SCStreamOutput {
         // Wrap CMSampleBuffer to make it safe for async context
         // CMSampleBuffer is reference-counted and safe to use across threads
         let buffer = UnsafeSendable(sampleBuffer)
-        
+
         Task { @MainActor in
-            guard isRecording,
-                  let assetWriter = assetWriter,
-                  assetWriter.status == .writing else { return }
-            
             switch type {
             case .audio:
-                if let audioInput = audioInput, audioInput.isReadyForMoreMediaData {
+                // If pre-buffering, store samples in buffer
+                if isPreBuffering {
+                    // Append buffer directly (ARC handles memory management)
+                    self.preBufferData.append(buffer.value)
+
+                    // Calculate total duration and remove old samples if > 30 seconds
+                    var totalDuration: TimeInterval = 0
+                    for sample in self.preBufferData {
+                        let duration = CMTimeGetSeconds(sample.duration)
+                        totalDuration += duration
+                    }
+
+                    // Remove oldest samples if we exceed 30 seconds
+                    while totalDuration > self.preBufferDuration && self.preBufferData.count > 1 {
+                        let removedBuffer = self.preBufferData.removeFirst()
+                        let removedDuration = CMTimeGetSeconds(removedBuffer.duration)
+                        totalDuration -= removedDuration
+                        // ARC automatically releases removedBuffer
+                    }
+                }
+                // If actively recording, write to file
+                else if isRecording,
+                        let assetWriter = assetWriter,
+                        assetWriter.status == .writing,
+                        let audioInput = audioInput,
+                        audioInput.isReadyForMoreMediaData {
                     audioInput.append(buffer.value)
                 }
             default:

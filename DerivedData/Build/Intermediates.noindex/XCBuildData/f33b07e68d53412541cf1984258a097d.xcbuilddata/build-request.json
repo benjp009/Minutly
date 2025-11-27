@@ -1,0 +1,63 @@
+{
+  "buildCommand" : {
+    "command" : "build",
+    "skipDependencies" : false,
+    "style" : "buildOnly"
+  },
+  "configuredTargets" : [
+    {
+      "guid" : "8799e5f5a9af2cccb1756947c4f8bf8ef44a5f517f875d0e777a08683b2b52a1"
+    }
+  ],
+  "containerPath" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly.xcodeproj",
+  "continueBuildingAfterErrors" : false,
+  "dependencyScope" : "workspace",
+  "enableIndexBuildArena" : false,
+  "hideShellScriptEnvironment" : false,
+  "parameters" : {
+    "action" : "build",
+    "activeArchitecture" : "x86_64",
+    "activeRunDestination" : {
+      "disableOnlyActiveArch" : false,
+      "platform" : "macosx",
+      "sdk" : "macosx26.1",
+      "sdkVariant" : "macos",
+      "supportedArchitectures" : [
+        "x86_64h",
+        "x86_64"
+      ],
+      "targetArchitecture" : "x86_64"
+    },
+    "arenaInfo" : {
+      "buildIntermediatesPath" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex",
+      "buildProductsPath" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Products",
+      "derivedDataPath" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData",
+      "indexDataStoreFolderPath" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Index.noindex/DataStore",
+      "indexEnableDataStore" : true,
+      "indexPCHPath" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Index.noindex/PrecompiledHeaders",
+      "pchPath" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/DerivedData/Build/Intermediates.noindex/PrecompiledHeaders"
+    },
+    "configurationName" : "Debug",
+    "overrides" : {
+      "commandLine" : {
+        "table" : {
+
+        }
+      },
+      "synthesized" : {
+        "table" : {
+          "ACTION" : "build",
+          "ENABLE_PREVIEWS" : "NO",
+          "ENABLE_XOJIT_PREVIEWS" : "YES",
+          "ONLY_ACTIVE_ARCH" : "YES"
+        }
+      }
+    }
+  },
+  "schemeCommand" : "launch",
+  "showNonLoggedProgress" : true,
+  "useDryRun" : false,
+  "useImplicitDependencies" : true,
+  "useLegacyBuildLocations" : false,
+  "useParallelTargets" : true
+}

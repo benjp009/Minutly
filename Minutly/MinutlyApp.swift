@@ -49,14 +49,31 @@ class AppState: ObservableObject {
 struct MinutlyApp: App {
     @StateObject private var appState = AppState()
     @AppStorage("enableMenuBarMode") private var enableMenuBarMode = false
+    @State private var showSplashScreen = true
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environmentObject(appState.recorder)
-                .onAppear {
-                    setupApp()
+            ZStack {
+                ContentView()
+                    .environmentObject(appState.recorder)
+                    .onAppear {
+                        setupApp()
+                    }
+
+                if showSplashScreen {
+                    SplashScreenView()
+                        .transition(.opacity)
+                        .zIndex(1)
                 }
+            }
+            .onAppear {
+                // Dismiss splash screen after 2 seconds
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                    withAnimation {
+                        showSplashScreen = false
+                    }
+                }
+            }
         }
         .commands {
             CommandGroup(replacing: .appSettings) {

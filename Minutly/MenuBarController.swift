@@ -23,8 +23,17 @@ class MenuBarController: ObservableObject {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
         if let button = statusItem?.button {
-            // Use SF Symbol for the menu bar icon
-            button.image = NSImage(systemSymbolName: "waveform.circle.fill", accessibilityDescription: "Minutly")
+            // Use AppIcon for the menu bar icon
+            if let appIcon = NSImage(named: "AppIcon") {
+                let resizedIcon = NSImage(size: NSSize(width: 18, height: 18))
+                resizedIcon.lockFocus()
+                appIcon.draw(in: NSRect(x: 0, y: 0, width: 18, height: 18))
+                resizedIcon.unlockFocus()
+                resizedIcon.isTemplate = true
+                button.image = resizedIcon
+            } else {
+                button.image = NSImage(systemSymbolName: "waveform.circle.fill", accessibilityDescription: "Minutly")
+            }
             button.action = #selector(handleClick(_:))
             button.target = self
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
@@ -159,8 +168,18 @@ class MenuBarController: ObservableObject {
                 button.image = coloredImage
             }
         } else {
-            button.image = NSImage(systemSymbolName: "waveform.circle.fill", accessibilityDescription: "Minutly")
-            button.image?.isTemplate = true
+            // Reset to default AppIcon
+            if let appIcon = NSImage(named: "AppIcon") {
+                let resizedIcon = NSImage(size: NSSize(width: 18, height: 18))
+                resizedIcon.lockFocus()
+                appIcon.draw(in: NSRect(x: 0, y: 0, width: 18, height: 18))
+                resizedIcon.unlockFocus()
+                resizedIcon.isTemplate = true
+                button.image = resizedIcon
+            } else {
+                button.image = NSImage(systemSymbolName: "waveform.circle.fill", accessibilityDescription: "Minutly")
+                button.image?.isTemplate = true
+            }
         }
     }
 

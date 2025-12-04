@@ -18,6 +18,9 @@ struct ContentView: View {
     @State private var detectedMeeting: String = ""
     @State private var selectedRecordingURL: URL?
     @State private var showWelcome = true
+    @State private var isSidebarCollapsed = false
+    @State private var isRecordingsExpanded = true
+    @State private var isUpcomingMeetingsExpanded = true
     @AppStorage("enableMeetingDetection") private var enableMeetingDetection = false
 
     var body: some View {
@@ -87,108 +90,204 @@ struct ContentView: View {
     }
 
     private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            VStack(spacing: 8) {
-                Image(systemName: "waveform.circle.fill")
-                    .font(.system(size: 48))
-                    .foregroundStyle(Color.accentColor)
+        VStack(alignment: .leading, spacing: 0) {
+            // Header with logo and calendar/toggle icon
+            HStack(spacing: 8) {
+                Image(nsImage: NSImage(named: "AppIcon") ?? NSImage())
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 20, height: 20)
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
 
-                Text("Minutly")
-                    .font(.title3)
-                    .fontWeight(.semibold)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.top, 12)
+                Spacer()
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text(recorder.isRecording ? "Recording..." : "Ready to record")
-                    .font(.headline)
-                    .foregroundStyle(recorder.isRecording ? .red : .secondary)
-                if recorder.isRecording {
-                    Text("System audio capture active")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else if recorder.isPreBuffering {
-                    Text("Pre-buffering last 30 seconds")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                if !isSidebarCollapsed {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color(hex: "A9A9A9"))
                 }
+
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        isSidebarCollapsed.toggle()
+                    }
+                }) {
+                    Image(systemName: isSidebarCollapsed ? "sidebar.right" : "sidebar.left")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color(hex: "A9A9A9"))
+                }
+                .buttonStyle(.plain)
             }
+            .frame(height: 30)
+            .padding(.horizontal, 10)
+            .padding(.top, 10)
 
-            Button(action: startOrStopRecording) {
-                Label(
-                    recorder.isRecording ? "Stop Recording" : "Start Recording",
-                    systemImage: recorder.isRecording ? "stop.circle.fill" : "circle.circle.fill"
-                )
-                .font(.headline)
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(recorder.isRecording ? Color.red : Color.accentColor)
-                .foregroundStyle(.white)
-                .cornerRadius(12)
+            // New Recording Button
+            InteractiveSidebarButton(action: startOrStopRecording, isSelected: recorder.isRecording) {
+                HStack(spacing: 8) {
+                    Image(systemName: recorder.isRecording ? "stop.circle.fill" : "mic.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.black)
+
+                    if !isSidebarCollapsed {
+                        Text(recorder.isRecording ? "Stop Recording" : "New recording")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.black)
+
+                        Spacer()
+                    }
+                }
+                .frame(height: 30)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 10)
             }
-            .buttonStyle(.plain)
+            .padding(.horizontal, 10)
+            .padding(.top, 8)
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Recordings")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .textCase(.uppercase)
-                    .foregroundStyle(.secondary)
+            // Recordings and Upcoming Meetings Section
+            if !isSidebarCollapsed {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        // Recordings Section Header
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                isRecordingsExpanded.toggle()
+                            }
+                        }) {
+                            HStack {
+                                Text("Recordings")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(Color(hex: "A9A9A9"))
 
-                if recorder.recordings.isEmpty {
-                    Text("No recordings yet")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                } else {
-                    ScrollView {
-                        VStack(spacing: 6) {
-                            ForEach(recorder.recordings, id: \.self) { url in
-                                Button {
-                                    selectedRecordingURL = url
-                                    showWelcome = false
-                                } label: {
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 2) {
+                                Spacer()
+
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(Color(hex: "A9A9A9"))
+                                    .rotationEffect(.degrees(isRecordingsExpanded ? 90 : 0))
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.top, 12)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+
+                        // Recordings List
+                        if isRecordingsExpanded {
+                            if recorder.recordings.isEmpty {
+                                Text("No recordings yet")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(Color(hex: "A9A9A9"))
+                                    .padding(.horizontal, 10)
+                                    .padding(.top, 8)
+                            } else {
+                                VStack(spacing: 4) {
+                                    ForEach(recorder.recordings, id: \.self) { url in
+                                        InteractiveSidebarButton(
+                                            action: {
+                                                selectedRecordingURL = url
+                                                showWelcome = false
+                                            },
+                                            isSelected: selectedRecordingURL == url
+                                        ) {
                                             Text(cleanName(from: url))
-                                                .font(.subheadline)
+                                                .font(.system(size: 12))
+                                                .foregroundStyle(.black)
                                                 .lineLimit(1)
-                                            Text(url.formattedCreationDate)
-                                                .font(.caption2)
-                                                .foregroundStyle(.secondary)
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                                .frame(height: 30)
+                                                .padding(.horizontal, 10)
                                         }
-                                        Spacer()
+                                        .padding(.horizontal, 10)
                                     }
-                                    .padding(10)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(selectedRecordingURL == url ? Color.accentColor.opacity(0.15) : Color.clear)
-                                    .cornerRadius(8)
                                 }
-                                .buttonStyle(.plain)
+                                .padding(.top, 4)
+                            }
+                        }
+
+                        // Upcoming Meetings Section Header (right after recordings)
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                isUpcomingMeetingsExpanded.toggle()
+                            }
+                        }) {
+                            HStack {
+                                Text("Upcoming Meetings")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(Color(hex: "A9A9A9"))
+
+                                Spacer()
+
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(Color(hex: "A9A9A9"))
+                                    .rotationEffect(.degrees(isUpcomingMeetingsExpanded ? 90 : 0))
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.top, 12)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+
+                        // Upcoming Meetings Content
+                        if isUpcomingMeetingsExpanded {
+                            if recorder.isPreBuffering {
+                                Text("Pre-buffering meeting...")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.black)
+                                    .frame(height: 30)
+                                    .padding(.horizontal, 10)
                             }
                         }
                     }
+                }
+            } else {
+                // Collapsed view - show just icons
+                ScrollView {
+                    VStack(spacing: 4) {
+                        ForEach(recorder.recordings.prefix(5), id: \.self) { url in
+                            Button {
+                                selectedRecordingURL = url
+                                showWelcome = false
+                            } label: {
+                                Circle()
+                                    .fill(selectedRecordingURL == url ? Color.accentColor.opacity(0.3) : Color.gray.opacity(0.2))
+                                    .frame(width: 8, height: 8)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.top, 12)
+                    .frame(maxWidth: .infinity)
                 }
             }
 
             Spacer()
 
-            Button {
-                showSettings = true
-            } label: {
-                Label("Settings", systemImage: "gearshape.fill")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(10)
-                    .background(Color.black.opacity(0.05))
-                    .cornerRadius(10)
+            // Settings Button
+            InteractiveSidebarButton(action: { showSettings = true }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.black)
+
+                    if !isSidebarCollapsed {
+                        Text("Settings")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.black)
+
+                        Spacer()
+                    }
+                }
+                .frame(height: 30)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 10)
             }
-            .buttonStyle(.plain)
-            .padding(.bottom, 12)
+            .padding(.horizontal, 10)
+            .padding(.bottom, 10)
         }
-        .padding(.horizontal, 20)
-        .frame(maxWidth: sidebarWidth)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .frame(width: isSidebarCollapsed ? 50 : 281)
+        .background(Color(hex: "F9F9F9"))
     }
 
     private var mainContent: some View {
@@ -233,10 +332,82 @@ struct ContentView: View {
     private func cleanName(from url: URL) -> String {
         url.deletingPathExtension().lastPathComponent
     }
+}
 
-    private var sidebarWidth: CGFloat {
-        let screenWidth = NSScreen.main?.frame.width ?? 1200
-        return max(220, screenWidth * 0.25)
+// MARK: - Interactive Sidebar Components
+struct InteractiveSidebarButton<Content: View>: View {
+    let action: () -> Void
+    let isSelected: Bool
+    let content: Content
+
+    @State private var isHovered = false
+    @State private var isPressed = false
+
+    init(action: @escaping () -> Void, isSelected: Bool = false, @ViewBuilder content: () -> Content) {
+        self.action = action
+        self.isSelected = isSelected
+        self.content = content()
+    }
+
+    var body: some View {
+        Button(action: action) {
+            content
+                .contentShape(Rectangle())
+                .background(backgroundColor)
+                .cornerRadius(12)
+                .scaleEffect(isPressed ? 0.97 : 1.0)
+                .animation(.easeInOut(duration: 0.1), value: isPressed)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    isPressed = true
+                }
+                .onEnded { _ in
+                    isPressed = false
+                }
+        )
+    }
+
+    private var backgroundColor: Color {
+        if isSelected {
+            return Color.accentColor.opacity(0.1)
+        } else if isHovered {
+            return Color.gray.opacity(0.15)
+        } else {
+            return Color.clear
+        }
+    }
+}
+
+// MARK: - Color Extension for Hex
+extension Color {
+    init(hex: String) {
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+        let a, r, g, b: UInt64
+        switch hex.count {
+        case 3: // RGB (12-bit)
+            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
+        case 6: // RGB (24-bit)
+            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+        case 8: // ARGB (32-bit)
+            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
+        default:
+            (a, r, g, b) = (255, 0, 0, 0)
+        }
+        self.init(
+            .sRGB,
+            red: Double(r) / 255,
+            green: Double(g) / 255,
+            blue:  Double(b) / 255,
+            opacity: Double(a) / 255
+        )
     }
 }
 
@@ -245,9 +416,11 @@ private struct WelcomeView: View {
 
     var body: some View {
         VStack(spacing: 24) {
-            Image(systemName: "record.waveform")
-                .font(.system(size: 80))
-                .foregroundStyle(Color.accentColor)
+            Image(nsImage: NSImage(named: "AppIcon") ?? NSImage())
+                .resizable()
+                .scaledToFit()
+                .frame(width: 80, height: 80)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
 
             VStack(spacing: 8) {
                 Text("Welcome to Minutly")

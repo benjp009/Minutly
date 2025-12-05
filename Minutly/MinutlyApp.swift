@@ -49,7 +49,9 @@ class AppState: ObservableObject {
 struct MinutlyApp: App {
     @StateObject private var appState = AppState()
     @AppStorage("enableMenuBarMode") private var enableMenuBarMode = false
+    @AppStorage("hasSelectedPlan") private var hasSelectedPlan = false
     @State private var showSplashScreen = true
+    @State private var showPlanSelection = false
 
     var body: some Scene {
         WindowGroup {
@@ -59,11 +61,18 @@ struct MinutlyApp: App {
                     .onAppear {
                         setupApp()
                     }
+                    .opacity(showSplashScreen || showPlanSelection ? 0 : 1)
+
+                if showPlanSelection && !hasSelectedPlan {
+                    PlanSelectionView(hasSelectedPlan: $hasSelectedPlan)
+                        .transition(.opacity)
+                        .zIndex(2)
+                }
 
                 if showSplashScreen {
                     SplashScreenView()
                         .transition(.opacity)
-                        .zIndex(1)
+                        .zIndex(3)
                 }
             }
             .onAppear {
@@ -71,6 +80,14 @@ struct MinutlyApp: App {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                     withAnimation {
                         showSplashScreen = false
+                        // Show plan selection if user hasn't selected a plan yet
+                        if !hasSelectedPlan {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                withAnimation {
+                                    showPlanSelection = true
+                                }
+                            }
+                        }
                     }
                 }
             }

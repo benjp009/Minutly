@@ -52,19 +52,11 @@ struct SettingsView: View {
             .padding(.top, 12)
 
             ForEach(SettingsSection.allCases) { section in
-                Button {
-                    selectedSection = section
-                } label: {
-                    HStack {
-                        Text(sectionTitle(section))
-                        Spacer()
-                    }
-                    .padding(10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(selectedSection == section ? Color.accentColor.opacity(0.15) : Color.clear)
-                    .cornerRadius(8)
-                }
-                .buttonStyle(.plain)
+                SettingsMenuItem(
+                    title: sectionTitle(section),
+                    isSelected: selectedSection == section,
+                    action: { selectedSection = section }
+                )
             }
 
             Spacer()
@@ -114,7 +106,11 @@ struct SettingsView: View {
                     apiSection
                 }
             }
-            .padding(24)
+            .padding(.top, 24)
+            .padding(.bottom, 24)
+            .padding(.trailing, 24)
+            .padding(.leading, 0)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(Color.white)
     }
@@ -158,6 +154,8 @@ struct SettingsView: View {
                 }
             }
         }
+        .padding(.leading, 16)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var meetingDetectionSection: some View {
@@ -196,6 +194,8 @@ struct SettingsView: View {
                 }
             }
         }
+        .padding(.leading, 16)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var transcriptionSection: some View {
@@ -252,6 +252,8 @@ struct SettingsView: View {
                 )
             }
         }
+        .padding(.leading, 16)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func infoBlock(icon: String, color: Color, title: String, description: String) -> some View {
@@ -283,6 +285,8 @@ struct SettingsView: View {
             Divider()
             comparisonSection
         }
+        .padding(.leading, 16)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var assemblySection: some View {
@@ -412,6 +416,55 @@ struct FeatureRow: View {
                     .font(.caption)
             }
             .frame(width: 150, alignment: .leading)
+        }
+    }
+}
+
+struct SettingsMenuItem: View {
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    @State private var isHovered = false
+    @State private var isPressed = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Text(title)
+                    .font(.body)
+                Spacer()
+            }
+            .contentShape(Rectangle())
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(backgroundColor)
+            .cornerRadius(12)
+            .scaleEffect(isPressed ? 0.97 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: isPressed)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    isPressed = true
+                }
+                .onEnded { _ in
+                    isPressed = false
+                }
+        )
+    }
+
+    private var backgroundColor: Color {
+        if isSelected {
+            return Color.accentColor.opacity(0.15)
+        } else if isHovered {
+            return Color.gray.opacity(0.15)
+        } else {
+            return Color.clear
         }
     }
 }

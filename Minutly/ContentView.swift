@@ -123,7 +123,7 @@ struct ContentView: View {
             .padding(.top, 10)
 
             // New Recording Button
-            InteractiveSidebarButton(action: startOrStopRecording, isSelected: recorder.isRecording) {
+            Button(action: startOrStopRecording) {
                 HStack(spacing: 8) {
                     Image(systemName: recorder.isRecording ? "stop.circle.fill" : "mic.fill")
                         .font(.system(size: 12))
@@ -140,7 +140,10 @@ struct ContentView: View {
                 .frame(height: 30)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 10)
+                .background(recorder.isRecording ? Color.red.opacity(0.1) : Color.clear)
+                .cornerRadius(6)
             }
+            .buttonStyle(.plain)
             .padding(.horizontal, 10)
             .padding(.top, 8)
 
@@ -181,15 +184,12 @@ struct ContentView: View {
                                     .padding(.horizontal, 10)
                                     .padding(.top, 8)
                             } else {
-                                VStack(spacing: 4) {
+                                VStack(spacing: 0) {
                                     ForEach(recorder.recordings, id: \.self) { url in
-                                        InteractiveSidebarButton(
-                                            action: {
-                                                selectedRecordingURL = url
-                                                showWelcome = false
-                                            },
-                                            isSelected: selectedRecordingURL == url
-                                        ) {
+                                        Button {
+                                            selectedRecordingURL = url
+                                            showWelcome = false
+                                        } label: {
                                             Text(cleanName(from: url))
                                                 .font(.system(size: 12))
                                                 .foregroundStyle(.black)
@@ -197,8 +197,10 @@ struct ContentView: View {
                                                 .frame(maxWidth: .infinity, alignment: .leading)
                                                 .frame(height: 30)
                                                 .padding(.horizontal, 10)
+                                                .background(selectedRecordingURL == url ? Color.accentColor.opacity(0.1) : Color.clear)
+                                                .cornerRadius(6)
                                         }
-                                        .padding(.horizontal, 10)
+                                        .buttonStyle(.plain)
                                     }
                                 }
                                 .padding(.top, 4)
@@ -265,7 +267,9 @@ struct ContentView: View {
             Spacer()
 
             // Settings Button
-            InteractiveSidebarButton(action: { showSettings = true }) {
+            Button {
+                showSettings = true
+            } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "gearshape")
                         .font(.system(size: 12))
@@ -283,6 +287,7 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 10)
             }
+            .buttonStyle(.plain)
             .padding(.horizontal, 10)
             .padding(.bottom, 10)
         }
@@ -334,55 +339,6 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Interactive Sidebar Components
-struct InteractiveSidebarButton<Content: View>: View {
-    let action: () -> Void
-    let isSelected: Bool
-    let content: Content
-
-    @State private var isHovered = false
-    @State private var isPressed = false
-
-    init(action: @escaping () -> Void, isSelected: Bool = false, @ViewBuilder content: () -> Content) {
-        self.action = action
-        self.isSelected = isSelected
-        self.content = content()
-    }
-
-    var body: some View {
-        Button(action: action) {
-            content
-                .contentShape(Rectangle())
-                .background(backgroundColor)
-                .cornerRadius(12)
-                .scaleEffect(isPressed ? 0.97 : 1.0)
-                .animation(.easeInOut(duration: 0.1), value: isPressed)
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering in
-            isHovered = hovering
-        }
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in
-                    isPressed = true
-                }
-                .onEnded { _ in
-                    isPressed = false
-                }
-        )
-    }
-
-    private var backgroundColor: Color {
-        if isSelected {
-            return Color.accentColor.opacity(0.1)
-        } else if isHovered {
-            return Color.gray.opacity(0.15)
-        } else {
-            return Color.clear
-        }
-    }
-}
 
 // MARK: - Color Extension for Hex
 extension Color {

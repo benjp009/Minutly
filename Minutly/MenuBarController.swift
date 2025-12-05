@@ -13,6 +13,7 @@ import Combine
 class MenuBarController: ObservableObject {
     private var statusItem: NSStatusItem?
     private var eventMonitor: Any?
+    private var popover: NSPopover?
     @Published var isMenuBarMode = false
     @Published var selectedRecordingURL: URL?
 
@@ -23,18 +24,51 @@ class MenuBarController: ObservableObject {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
         if let button = statusItem?.button {
-            // Use SF Symbol for the menu bar icon
-            button.image = NSImage(systemSymbolName: "waveform.circle.fill", accessibilityDescription: "Minutly")
+            // Use AppIcon for the menu bar icon
+            if let appIcon = NSImage(named: "AppIcon") {
+                let resizedIcon = NSImage(size: NSSize(width: 18, height: 18))
+                resizedIcon.lockFocus()
+                appIcon.draw(in: NSRect(x: 0, y: 0, width: 18, height: 18))
+                resizedIcon.unlockFocus()
+                resizedIcon.isTemplate = true
+                button.image = resizedIcon
+            } else {
+                button.image = NSImage(systemSymbolName: "waveform.circle.fill", accessibilityDescription: "Minutly")
+            }
             button.action = #selector(handleClick(_:))
             button.target = self
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
 
+        // Create popover
+        setupPopover()
+
         isMenuBarMode = true
         print("✅ Menu bar icon created")
     }
 
+    private func setupPopover() {
+        let popover = NSPopover()
+        popover.contentSize = NSSize(width: 1000, height: 650)
+        popover.behavior = .transient
+        popover.animates = true
+
+        // Create ContentView with recorder
+        if let recorder = recorder {
+            let contentView = ContentView()
+                .environmentObject(recorder)
+                .frame(width: 1000, height: 650)
+
+            popover.contentViewController = NSHostingController(rootView: contentView)
+        }
+
+        self.popover = popover
+    }
+
     func removeMenuBar() {
+        popover?.performClose(nil)
+        popover = nil
+
         if let statusItem = statusItem {
             NSStatusBar.system.removeStatusItem(statusItem)
             self.statusItem = nil
@@ -49,19 +83,35 @@ class MenuBarController: ObservableObject {
         if event.type == .rightMouseUp {
             showMenu()
         } else {
-            toggleRecording()
+            togglePopover()
         }
     }
 
-    private func toggleRecording() {
-        guard let recorder = recorder else { return }
+    private func togglePopover() {
+        guard let button = statusItem?.button else { return }
 
-        Task { @MainActor in
-            if recorder.isRecording {
-                await recorder.stopRecording()
-            } else if !recorder.isPreBuffering {
-                await recorder.startRecording()
-            }
+        if let popover = popover, popover.isShown {
+            popover.performClose(nil)
+        } else {
+            showPopover(relativeTo: button)
+        }
+    }
+
+    private func showPopover(relativeTo button: NSStatusBarButton) {
+        guard let popover = popover else { return }
+
+        // Calculate position to align sidebar to left
+        let buttonFrame = button.window?.convertToScreen(button.frame) ?? .zero
+
+        // Position the popover so the sidebar (281px wide) aligns with the left edge
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+
+        // Adjust the popover window position to align sidebar to the left of the button
+        if let popoverWindow = popover.contentViewController?.view.window {
+            var frame = popoverWindow.frame
+            // Move window left so that the sidebar (first 281px) aligns with button
+            frame.origin.x = buttonFrame.minX - 281
+            popoverWindow.setFrame(frame, display: true)
         }
     }
 
@@ -159,12 +209,27 @@ class MenuBarController: ObservableObject {
                 button.image = coloredImage
             }
         } else {
-            button.image = NSImage(systemSymbolName: "waveform.circle.fill", accessibilityDescription: "Minutly")
-            button.image?.isTemplate = true
+            // Reset to default AppIcon
+            if let appIcon = NSImage(named: "AppIcon") {
+                let resizedIcon = NSImage(size: NSSize(width: 18, height: 18))
+                resizedIcon.lockFocus()
+                appIcon.draw(in: NSRect(x: 0, y: 0, width: 18, height: 18))
+                resizedIcon.unlockFocus()
+                resizedIcon.isTemplate = true
+                button.image = resizedIcon
+            } else {
+                button.image = NSImage(systemSymbolName: "waveform.circle.fill", accessibilityDescription: "Minutly")
+                button.image?.isTemplate = true
+            }
         }
     }
 
     func setRecorder(_ recorder: ScreenRecorder) {
         self.recorder = recorder
+
+        // Recreate popover if menu bar is active
+        if isMenuBarMode {
+            setupPopover()
+        }
     }
 }

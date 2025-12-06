@@ -103,14 +103,14 @@ class MenuBarController: ObservableObject {
         // Calculate position to align sidebar to left
         let buttonFrame = button.window?.convertToScreen(button.frame) ?? .zero
 
-        // Position the popover so the sidebar (281px wide) aligns with the left edge
+        // Position the popover so the sidebar (300px wide) aligns with the left edge
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
 
         // Adjust the popover window position to align sidebar to the left of the button
         if let popoverWindow = popover.contentViewController?.view.window {
             var frame = popoverWindow.frame
-            // Move window left so that the sidebar (first 281px) aligns with button
-            frame.origin.x = buttonFrame.minX - 281
+            // Move window left so that the sidebar (first 300px) aligns with button
+            frame.origin.x = buttonFrame.minX - 300
             popoverWindow.setFrame(frame, display: true)
         }
     }

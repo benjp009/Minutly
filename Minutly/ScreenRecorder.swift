@@ -556,9 +556,21 @@ class ScreenRecorder: NSObject, ObservableObject {
             
             isRecording = true
             errorMessage = nil
-            
+            print("✅ Recording started successfully")
+
         } catch {
+            // isRecording will remain false - good!
             errorMessage = "Failed to start recording: \(error.localizedDescription)"
+            isRecording = false  // Explicit fallback
+            print("❌ Recording failed: \(error)")
+
+            // Cleanup on error
+            stream = nil
+            assetWriter = nil
+            audioInput = nil
+            micRecorder = nil
+            tempURL = nil
+            micTempURL = nil
         }
     }
     
@@ -575,6 +587,13 @@ class ScreenRecorder: NSObject, ObservableObject {
         // Ensure we always set isRecording to false when this function completes
         defer {
             print("🔄 Defer block executing - setting isRecording to false")
+
+            // Explicit cleanup
+            self.preBufferManager = nil
+            self.audioInput = nil
+            self.assetWriter = nil
+            self.stream = nil
+
             DispatchQueue.main.async {
                 self.isRecording = false
                 self.fetchRecordings()
@@ -591,10 +610,35 @@ class ScreenRecorder: NSObject, ObservableObject {
             // Finish writing system audio
             print("🎵 Marking audio input as finished...")
             audioInput?.markAsFinished()
-            
+
+            // Finish asset writer with timeout and status check
             print("💾 Finishing asset writer...")
-            await assetWriter?.finishWriting()
-            print("✅ Asset writer finished, status: \(assetWriter?.status.rawValue ?? -1)")
+            if let writer = assetWriter, writer.status == .writing {
+                do {
+                    // Create a task for finishWriting with timeout protection
+                    let finishTask = Task {
+                        try await writer.finishWriting()
+                    }
+
+                    // Wait with 10-second timeout
+                    let timeout: UInt64 = 10_000_000_000 // 10 seconds in nanoseconds
+                    try await withAssetWriterTimeout(nanoseconds: timeout) {
+                        try await finishTask.value
+                    }
+
+                    print("✅ Asset writer finished successfully, status: \(writer.status.rawValue)")
+                } catch {
+                    print("❌ Asset writer error: \(error)")
+                    if writer.status == .failed {
+                        print("⚠️ Writer already in failed state, skipping cleanup")
+                    }
+                }
+            } else {
+                print("⚠️ Asset writer not in writing state, skipping finishWriting")
+                if let writer = assetWriter {
+                    print("   Current status: \(writer.status.rawValue)")
+                }
+            }
             
             // Stop microphone recorder
             print("🎤 Stopping mic recorder...")
@@ -897,6 +941,32 @@ extension ScreenRecorder: SCStreamOutput {
 }
 
 // Helper to make non-Sendable types work with Task
+// Timeout helper for AVAssetWriter finishWriting
+private func withAssetWriterTimeout(nanoseconds: UInt64, block: @escaping () async throws -> Void) async throws {
+    let deadline = DispatchTime.now().uptimeNanoseconds + nanoseconds
+
+    try await withThrowingTaskGroup(of: Void.self) { group in
+        group.addTask {
+            try await block()
+        }
+
+        group.addTask {
+            while DispatchTime.now().uptimeNanoseconds < deadline {
+                try Task.checkCancellation()
+                try await Task.sleep(nanoseconds: 100_000_000) // 100ms
+            }
+            throw AssetWriterTimeoutError.timeout
+        }
+
+        try await group.next()
+        group.cancelAll()
+    }
+}
+
+enum AssetWriterTimeoutError: Error {
+    case timeout
+}
+
 private struct UnsafeSendable<T>: @unchecked Sendable {
     nonisolated(unsafe) let value: T
     nonisolated init(_ value: T) {

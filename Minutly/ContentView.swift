@@ -9,6 +9,7 @@ import SwiftUI
 import AVFoundation
 import EventKit
 import AppKit
+import Combine
 
 struct ContentView: View {
     @EnvironmentObject var recorder: ScreenRecorder
@@ -419,6 +420,7 @@ private struct RecordingDetailView: View {
     @State private var isPlaying = false
     @State private var audioPlayer: AVAudioPlayer?
     @State private var timer: Timer?
+    @State private var playbackCancellable: AnyCancellable?
     @State private var currentTime: TimeInterval = 0
     @State private var playerDelegate: PlayerDelegate?
     @State private var isEditingName = false
@@ -680,17 +682,27 @@ private struct RecordingDetailView: View {
             audioPlayer?.delegate = playerDelegate
             audioPlayer?.play()
             isPlaying = true
-            timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
-                currentTime = audioPlayer?.currentTime ?? 0
-            }
+
+            // Use Combine timer with automatic cleanup instead of DispatchSourceTimer
+            playbackCancellable = Timer.publish(every: 0.05, on: .main, in: .common)
+                .autoconnect()
+                .sink { _ in
+                    currentTime = audioPlayer?.currentTime ?? 0
+                }
         } catch {
             print("Failed to play audio: \(error)")
         }
     }
 
     private func stopPlayback() {
+        // Cancel Combine timer subscription
+        playbackCancellable?.cancel()
+        playbackCancellable = nil
+
+        // Legacy timer cleanup (for safety)
         timer?.invalidate()
         timer = nil
+
         audioPlayer?.stop()
         audioPlayer = nil
         playerDelegate = nil

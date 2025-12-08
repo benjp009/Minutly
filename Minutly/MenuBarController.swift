@@ -284,4 +284,11 @@ class MenuBarController: ObservableObject {
             setupPopover()
         }
     }
+
+    deinit {
+        // Cleanup timer in deinit - timer is safe to invalidate from any context
+        blinkingTimer?.invalidate()
+        blinkingTimer = nil
+        print("🔄 MenuBarController deallocated")
+    }
 }

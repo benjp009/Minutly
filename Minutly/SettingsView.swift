@@ -9,13 +9,14 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("assemblyAI_APIKey") private var assemblyAIKey: String = ""
-    @AppStorage("openAI_APIKey") private var openAIKey: String = ""
+    @State private var assemblyAIKey: String = ""
+    @State private var openAIKey: String = ""
     @AppStorage("transcriptionProvider") private var transcriptionProvider: String = "apple"
     @AppStorage("enableMeetingDetection") private var enableMeetingDetection = false
     @AppStorage("enableMenuBarMode") private var enableMenuBarMode = false
     @State private var showRestartAlert = false
     @State private var selectedSection: SettingsSection = .general
+    @State private var loadingKeys = true
 
     private enum SettingsSection: String, CaseIterable, Identifiable {
         case general = "General"
@@ -37,6 +38,36 @@ struct SettingsView: View {
             Button("OK") {}
         } message: {
             Text("Please restart Minutly for the menu bar mode change to take effect.")
+        }
+        .onAppear {
+            loadKeysFromKeychain()
+        }
+    }
+
+    private func loadKeysFromKeychain() {
+        do {
+            if let key = try KeychainService.shared.retrieveAPIKey(for: "assemblyai") {
+                assemblyAIKey = key
+            }
+            if let key = try KeychainService.shared.retrieveAPIKey(for: "openai") {
+                openAIKey = key
+            }
+        } catch {
+            print("⚠️ Error loading API keys from Keychain: \(error.localizedDescription)")
+        }
+        loadingKeys = false
+    }
+
+    private func saveKeysToKeychain() {
+        do {
+            if !assemblyAIKey.isEmpty {
+                try KeychainService.shared.saveAPIKey(assemblyAIKey, for: "assemblyai")
+            }
+            if !openAIKey.isEmpty {
+                try KeychainService.shared.saveAPIKey(openAIKey, for: "openai")
+            }
+        } catch {
+            print("❌ Error saving API keys to Keychain: \(error.localizedDescription)")
         }
     }
 
@@ -296,6 +327,9 @@ struct SettingsView: View {
 
             SecureField("Enter your API key", text: $assemblyAIKey)
                 .textFieldStyle(.roundedBorder)
+                .onChange(of: assemblyAIKey) { _, _ in
+                    saveKeysToKeychain()
+                }
 
             if assemblyAIKey.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
@@ -331,6 +365,9 @@ struct SettingsView: View {
 
             SecureField("Enter your OpenAI API key", text: $openAIKey)
                 .textFieldStyle(.roundedBorder)
+                .onChange(of: openAIKey) { _, _ in
+                    saveKeysToKeychain()
+                }
 
             if openAIKey.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {

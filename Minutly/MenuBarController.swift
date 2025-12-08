@@ -80,7 +80,7 @@ class MenuBarController: ObservableObject {
     }
 
     @objc private func handleClick(_ sender: NSStatusBarButton) {
-        guard let event = NSApp.currentEvent else { return }
+        guard NSApp.currentEvent != nil else { return }
 
         // Show menu on both left and right click
         showMenu()
@@ -178,8 +178,10 @@ class MenuBarController: ObservableObject {
         stopBlinking()
         isBlinkingOn = false
         blinkingTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
-            self?.isBlinkingOn.toggle()
-            self?.updateBlinkingIcon()
+            DispatchQueue.main.async {
+                self?.isBlinkingOn.toggle()
+                self?.updateBlinkingIcon()
+            }
         }
     }
 

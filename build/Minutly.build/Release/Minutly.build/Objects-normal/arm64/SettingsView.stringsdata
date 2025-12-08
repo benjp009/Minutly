@@ -1,0 +1,272 @@
+{
+  "source": "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/SettingsView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Restart Required",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 37
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 38
+        }
+      },
+      {
+        "comment": "",
+        "key": "Please restart Minutly for the menu bar mode change to take effect.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 40
+        }
+      },
+      {
+        "comment": "",
+        "key": "Settings",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 79
+        }
+      },
+      {
+        "comment": "",
+        "key": "Close",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 98
+        }
+      },
+      {
+        "comment": "",
+        "key": "General",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 151
+        }
+      },
+      {
+        "comment": "",
+        "key": "Show in Menu Bar only",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 155
+        }
+      },
+      {
+        "comment": "",
+        "key": "• App runs in the background from menu bar\n• Ideal for automatic meeting detection\n• Click menu bar icon to access recordings quickly\n• Requires restart to take effect",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 168
+        }
+      },
+      {
+        "comment": "",
+        "key": "Menu Bar Mode",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 164
+        }
+      },
+      {
+        "comment": "",
+        "key": "Please restart the app to enable menu bar mode",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 181
+        }
+      },
+      {
+        "comment": "",
+        "key": "Meeting Detection",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 194
+        }
+      },
+      {
+        "comment": "",
+        "key": "Auto-detect meetings from Calendar",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 198
+        }
+      },
+      {
+        "comment": "",
+        "key": "• Monitors macOS Calendar for upcoming meetings\n• Notifies you 2 minutes before a meeting starts\n• Starts a 30-second pre-buffer when confirmed\n• Keeps the last 30 seconds before recording",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 208
+        }
+      },
+      {
+        "comment": "",
+        "key": "How it works",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 204
+        }
+      },
+      {
+        "comment": "",
+        "key": "Meeting detection enabled",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 221
+        }
+      },
+      {
+        "comment": "",
+        "key": "Transcription",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 234
+        }
+      },
+      {
+        "comment": "",
+        "key": "Provider",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 238
+        }
+      },
+      {
+        "comment": "",
+        "key": "Apple Speech (Free, No Speaker ID)",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 239
+        }
+      },
+      {
+        "comment": "",
+        "key": "AssemblyAI (Paid, Speaker ID)",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 240
+        }
+      },
+      {
+        "comment": "",
+        "key": "OpenAI Whisper (Paid, High Accuracy)",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 241
+        }
+      },
+      {
+        "comment": "",
+        "key": "API Settings",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 309
+        }
+      },
+      {
+        "comment": "",
+        "key": "AssemblyAI API Key",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 325
+        }
+      },
+      {
+        "comment": "",
+        "key": "Enter your API key",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 328
+        }
+      },
+      {
+        "comment": "",
+        "key": "Get API Key",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 345
+        }
+      },
+      {
+        "comment": "",
+        "key": "API Key Configured",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 353
+        }
+      },
+      {
+        "comment": "",
+        "key": "OpenAI API Key",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 363
+        }
+      },
+      {
+        "comment": "",
+        "key": "Enter your OpenAI API key",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 366
+        }
+      },
+      {
+        "comment": "",
+        "key": "Get OpenAI API Key",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 383
+        }
+      },
+      {
+        "comment": "",
+        "key": "GPT-3.5 • ~$0.001-0.002 per summary",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 397
+        }
+      },
+      {
+        "comment": "",
+        "key": "AI Summarization Enabled",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 393
+        }
+      },
+      {
+        "comment": "",
+        "key": "Features Comparison",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 407
+        }
+      },
+      {
+        "comment": "",
+        "key": "Apple",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 440
+        }
+      },
+      {
+        "comment": "",
+        "key": "AssemblyAI",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 449
+        }
+      }
+    ]
+  },
+  "version": 1
+}

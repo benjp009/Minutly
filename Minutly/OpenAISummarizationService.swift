@@ -10,19 +10,52 @@ import Foundation
 class OpenAISummarizationService {
     private let baseURL = "https://api.openai.com/v1/chat/completions"
     private var apiKey: String
+    private let pinnedSession: URLSession
 
     init(apiKey: String) {
         self.apiKey = apiKey
+
+        // Initialize certificate pinning for api.openai.com
+        // In production, you should extract and pin the actual certificates
+        let delegate = CertificatePinningDelegate(pinnedDomains: [:])
+        self.pinnedSession = URLSession.createPinnedSession(with: delegate)
     }
 
     func updateAPIKey(_ key: String) {
         self.apiKey = key
     }
 
+    // MARK: - Token Validation
+
+    /// Estimate tokens in text (rough approximation: 1 token ≈ 4 characters)
+    private func estimateTokens(_ text: String) -> Int {
+        return text.count / 4
+    }
+
+    /// Validate transcription length before summarization
+    private func validateTranscriptionLength(_ transcription: String) throws {
+        let maxChars = 100_000  // ~25,000 tokens
+        let estimatedTokens = estimateTokens(transcription)
+
+        guard transcription.count <= maxChars else {
+            throw OpenAIError.contentTooLarge(
+                size: transcription.count,
+                maxSize: maxChars,
+                estimatedTokens: estimatedTokens
+            )
+        }
+
+        print("✅ Transcription length valid: \(estimatedTokens) tokens (~\(transcription.count) chars)")
+    }
+
     // MARK: - Summarization
 
     func summarize(transcription: String, onProgress: @escaping (Double, String) -> Void) async throws -> ConversationSummary {
         print("🤖 Starting OpenAI summarization...")
+
+        // Validate transcription length
+        try validateTranscriptionLength(transcription)
+
         onProgress(0.1, "Preparing request...")
 
         guard let url = URL(string: baseURL) else {
@@ -88,7 +121,7 @@ class OpenAISummarizationService {
 
         let (data, response): (Data, URLResponse)
         do {
-            (data, response) = try await URLSession.shared.data(for: request)
+            (data, response) = try await pinnedSession.data(for: request)
         } catch {
             print("❌ Network error: \(error.localizedDescription)")
             throw OpenAIError.networkError(error.localizedDescription)
@@ -109,7 +142,17 @@ class OpenAISummarizationService {
         // Parse response
         let openAIResponse = try JSONDecoder().decode(OpenAIResponse.self, from: data)
 
+        // Validate response structure
+        guard !openAIResponse.choices.isEmpty else {
+            throw OpenAIError.invalidResponse
+        }
+
         guard let content = openAIResponse.choices.first?.message.content else {
+            throw OpenAIError.invalidResponse
+        }
+
+        // Validate content is not empty
+        guard !content.trimmingCharacters(in: .whitespaces).isEmpty else {
             throw OpenAIError.invalidResponse
         }
 
@@ -120,7 +163,13 @@ class OpenAISummarizationService {
             throw OpenAIError.invalidResponse
         }
 
-        let summary = try JSONDecoder().decode(ConversationSummary.self, from: contentData)
+        // Decode with strict validation
+        let decoder = JSONDecoder()
+        let summary = try decoder.decode(ConversationSummary.self, from: contentData)
+
+        // Validate summary structure
+        try summary.validate()
+
         onProgress(1.0, "Complete!")
 
         print("✅ Summary parsed successfully: \(summary.tasks.count) tasks found")
@@ -157,6 +206,43 @@ struct ConversationSummary: Codable {
         enum CodingKeys: String, CodingKey {
             case task, owner, deadline, dependencies, priority
         }
+
+        func validate() throws {
+            // Validate task is not empty
+            guard !task.trimmingCharacters(in: .whitespaces).isEmpty else {
+                throw ValidationError.emptyTask
+            }
+            // Validate reasonable task length (prevent injection)
+            guard task.count < 10000 else {
+                throw ValidationError.taskTooLong
+            }
+            // Validate priority if present
+            if let priority = priority {
+                let validPriorities = ["high", "medium", "low"]
+                guard validPriorities.contains(priority.lowercased()) else {
+                    throw ValidationError.invalidPriority
+                }
+            }
+        }
+    }
+
+    func validate() throws {
+        // Validate summary is not empty
+        guard !summary.trimmingCharacters(in: .whitespaces).isEmpty else {
+            throw ValidationError.emptySummary
+        }
+        // Validate reasonable summary length
+        guard summary.count < 50000 else {
+            throw ValidationError.summaryTooLong
+        }
+        // Validate task count
+        guard tasks.count < 200 else {
+            throw ValidationError.tooManyTasks
+        }
+        // Validate each task
+        for task in tasks {
+            try task.validate()
+        }
     }
 
     // Format as readable text
@@ -187,6 +273,34 @@ struct ConversationSummary: Codable {
     }
 }
 
+// MARK: - Validation Errors
+
+enum ValidationError: LocalizedError {
+    case emptySummary
+    case summaryTooLong
+    case emptyTask
+    case taskTooLong
+    case invalidPriority
+    case tooManyTasks
+
+    var errorDescription: String? {
+        switch self {
+        case .emptySummary:
+            return "Summary cannot be empty"
+        case .summaryTooLong:
+            return "Summary is too long (max 50000 characters)"
+        case .emptyTask:
+            return "Task cannot be empty"
+        case .taskTooLong:
+            return "Task is too long (max 10000 characters)"
+        case .invalidPriority:
+            return "Priority must be 'high', 'medium', or 'low'"
+        case .tooManyTasks:
+            return "Too many tasks (max 200)"
+        }
+    }
+}
+
 // MARK: - Errors
 
 enum OpenAIError: LocalizedError {
@@ -195,6 +309,7 @@ enum OpenAIError: LocalizedError {
     case apiError(statusCode: Int, message: String)
     case networkError(String)
     case invalidAPIKey
+    case contentTooLarge(size: Int, maxSize: Int, estimatedTokens: Int)
 
     var errorDescription: String? {
         switch self {
@@ -214,6 +329,8 @@ enum OpenAIError: LocalizedError {
             return "Network error: \(message). Please check your internet connection."
         case .invalidAPIKey:
             return "OpenAI API key not configured. Please add your API key in Settings."
+        case .contentTooLarge(let size, let maxSize, let tokens):
+            return "Transcription too large (\(size) chars, ~\(tokens) tokens). Maximum: \(maxSize) chars (~25,000 tokens)."
         }
     }
 }

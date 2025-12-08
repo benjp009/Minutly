@@ -77,11 +77,43 @@ struct ContentView: View {
         .alert("Meeting Starting", isPresented: $showMeetingAlert) {
             Button("Start Recording") {
                 Task {
+                    // Record user confirmation
+                    if let meeting = calendarMonitor.upcomingMeeting {
+                        let confirmationManager = MeetingConfirmationManager.shared
+                        do {
+                            try confirmationManager.recordMeetingConfirmation(
+                                eventID: meeting.consistentID,
+                                eventTitle: meeting.title ?? "Untitled",
+                                eventDate: meeting.startDate,
+                                userConfirmed: true,
+                                method: "manual"
+                            )
+                        } catch {
+                            print("Failed to record meeting confirmation: \(error.localizedDescription)")
+                        }
+                    }
+
                     await recorder.confirmRecordingFromPreBuffer()
                 }
             }
             Button("Ignore", role: .cancel) {
                 Task {
+                    // Record user decline
+                    if let meeting = calendarMonitor.upcomingMeeting {
+                        let confirmationManager = MeetingConfirmationManager.shared
+                        do {
+                            try confirmationManager.recordMeetingConfirmation(
+                                eventID: meeting.consistentID,
+                                eventTitle: meeting.title ?? "Untitled",
+                                eventDate: meeting.startDate,
+                                userConfirmed: false,
+                                method: "manual"
+                            )
+                        } catch {
+                            print("Failed to record meeting decline: \(error.localizedDescription)")
+                        }
+                    }
+
                     await recorder.cancelPreBuffer()
                 }
             }

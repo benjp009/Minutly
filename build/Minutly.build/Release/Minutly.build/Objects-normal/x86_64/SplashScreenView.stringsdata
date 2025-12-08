@@ -1,0 +1,24 @@
+{
+  "source": "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/SplashScreenView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Welcome to Minutly",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 37
+        }
+      },
+      {
+        "comment": "",
+        "key": "Where your meetings become your superpower",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 46
+        }
+      }
+    ]
+  },
+  "version": 1
+}

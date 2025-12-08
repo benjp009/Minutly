@@ -79,6 +79,12 @@ class ScreenRecorder: NSObject, ObservableObject {
     // Transcription service
     let transcriptionService: TranscriptionService
 
+    // Encryption service
+    private let encryptionService = EncryptionService.shared
+
+    // Audit logger
+    private let auditLogger = AuditLogger.shared
+
     // Pre-buffering
     @Published var isPreBuffering = false
     private var preBufferManager: PreBufferManager?
@@ -617,13 +623,13 @@ class ScreenRecorder: NSObject, ObservableObject {
                 do {
                     // Create a task for finishWriting with timeout protection
                     let finishTask = Task {
-                        try await writer.finishWriting()
+                        await writer.finishWriting()
                     }
 
                     // Wait with 10-second timeout
                     let timeout: UInt64 = 10_000_000_000 // 10 seconds in nanoseconds
                     try await withAssetWriterTimeout(nanoseconds: timeout) {
-                        try await finishTask.value
+                        await finishTask.value
                     }
 
                     print("✅ Asset writer finished successfully, status: \(writer.status.rawValue)")
@@ -676,15 +682,37 @@ class ScreenRecorder: NSObject, ObservableObject {
                     print("   🎶 Calling mixAudioFiles...")
                     try await mixAudioFiles(systemURL: sysURL, micURL: micURL, destinationURL: destinationURL)
                     print("   ✅ Audio mixing complete")
+
+                    // Encrypt the audio file
+                    print("   🔐 Encrypting audio file...")
+                    let encryptedFileName = "\(destinationURL.deletingPathExtension().lastPathComponent).enc"
+                    let encryptedURL = destinationURL.deletingLastPathComponent().appendingPathComponent(encryptedFileName)
+
+                    try self.encryptionService.encryptAudioFile(at: destinationURL, to: encryptedURL)
+                    print("   ✅ Audio file encrypted")
+
+                    // Remove plaintext file after encryption
+                    try? FileManager.default.removeItem(at: destinationURL)
+                    print("   ✅ Plaintext file removed")
+
+                    // Log encryption event
+                    await self.auditLogger.log(
+                        event: .recordingEncrypted(
+                            title: self.currentMeetingTitle ?? "Untitled",
+                            duration: 0  // Duration logged separately in recordingStopped
+                        ),
+                        source: "system"
+                    )
+
                     DispatchQueue.main.async {
-                        self.lastRecordingPath = destinationURL.path
+                        self.lastRecordingPath = encryptedURL.path
                         // Update recordings immediately so UI shows the new file without waiting
                         self.fetchRecordings()
                     }
                 } catch {
-                    print("   ❌ Audio mixing failed: \(error.localizedDescription)")
+                    print("   ❌ Audio processing failed: \(error.localizedDescription)")
                     DispatchQueue.main.async {
-                        self.errorMessage = "Failed to mix audio: \(error.localizedDescription)"
+                        self.errorMessage = "Failed to process audio: \(error.localizedDescription)"
                     }
                 }
             } else {
@@ -715,12 +743,12 @@ class ScreenRecorder: NSObject, ObservableObject {
     func fetchRecordings() {
         let fileManager = FileManager.default
         guard let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
-        
+
         do {
             let fileURLs = try fileManager.contentsOfDirectory(at: documentsURL, includingPropertiesForKeys: nil)
-            // Include all .wav files
+            // Include all encrypted .enc files (audio files are now encrypted)
             let recordings = fileURLs.filter {
-                $0.pathExtension.lowercased() == "wav"
+                $0.pathExtension.lowercased() == "enc"
             }
 
             DispatchQueue.main.async {

@@ -11,6 +11,51 @@ import ScreenCaptureKit
 import Combine
 import AppKit
 
+// Thread-safe pre-buffer manager
+private actor PreBufferManager {
+    private var buffers: [CMSampleBuffer] = []
+    private let maxDuration: TimeInterval
+    private let maxSampleCount: Int = 2000 // Hard limit
+
+    init(maxDuration: TimeInterval) {
+        self.maxDuration = maxDuration
+    }
+
+    func append(_ buffer: CMSampleBuffer) -> Bool {
+        // Check hard limit BEFORE appending
+        guard buffers.count < maxSampleCount else {
+            print("⚠️ Pre-buffer hit max sample count, rejecting new sample")
+            return false
+        }
+
+        buffers.append(buffer)
+
+        // Remove old samples if duration exceeded
+        var totalDuration: TimeInterval = 0
+        for sample in buffers {
+            totalDuration += CMTimeGetSeconds(sample.duration)
+        }
+
+        while totalDuration > maxDuration && buffers.count > 1 {
+            let removed = buffers.removeFirst()
+            totalDuration -= CMTimeGetSeconds(removed.duration)
+        }
+
+        return true
+    }
+
+    func getAllBuffers() -> [CMSampleBuffer] {
+        return buffers
+    }
+
+    func clear() {
+        buffers.removeAll()
+    }
+
+    func getCount() -> Int {
+        return buffers.count
+    }
+}
 
 @MainActor
 class ScreenRecorder: NSObject, ObservableObject {
@@ -36,13 +81,28 @@ class ScreenRecorder: NSObject, ObservableObject {
 
     // Pre-buffering
     @Published var isPreBuffering = false
-    private var preBufferData: [CMSampleBuffer] = []
+    private var preBufferManager: PreBufferManager?
     private let preBufferDuration: TimeInterval = 30.0 // 30 seconds
     private var preBufferQueue = DispatchQueue(label: "com.minutly.prebuffer")
 
     override init() {
         self.transcriptionService = TranscriptionService()
         super.init()
+        setupMemoryPressureMonitoring()
+    }
+
+    private func setupMemoryPressureMonitoring() {
+        let source = DispatchSource.makeMemoryPressureSource(eventMask: .warning, queue: .main)
+        source.setEventHandler { [weak self] in
+            guard let self = self else { return }
+            if self.isPreBuffering {
+                print("⚠️ Memory pressure detected - cancelling pre-buffer")
+                Task {
+                    await self.cancelPreBuffer()
+                }
+            }
+        }
+        source.resume()
     }
 
     // MARK: - Pre-buffering
@@ -51,7 +111,7 @@ class ScreenRecorder: NSObject, ObservableObject {
         print("🔄 Starting pre-buffering (30 seconds)...")
         currentMeetingTitle = meetingTitle
         isPreBuffering = true
-        preBufferData.removeAll()
+        preBufferManager = PreBufferManager(maxDuration: preBufferDuration)
 
         do {
             // Get available content (displays)
@@ -109,7 +169,10 @@ class ScreenRecorder: NSObject, ObservableObject {
     func cancelPreBuffer() async {
         print("❌ User cancelled - discarding pre-buffer...")
         isPreBuffering = false
-        preBufferData.removeAll()
+        if let manager = preBufferManager {
+            await manager.clear()
+        }
+        preBufferManager = nil
 
         // Stop stream
         try? await stream?.stopCapture()
@@ -193,13 +256,17 @@ class ScreenRecorder: NSObject, ObservableObject {
             assetWriter?.startSession(atSourceTime: CMTime.zero)
 
             // Write pre-buffered data first
-            print("💾 Writing \(preBufferData.count) pre-buffered samples...")
-            for sampleBuffer in preBufferData {
-                if let audioInput = audioInput, audioInput.isReadyForMoreMediaData {
-                    audioInput.append(sampleBuffer)
+            if let manager = preBufferManager {
+                let buffers = await manager.getAllBuffers()
+                print("💾 Writing \(buffers.count) pre-buffered samples...")
+                for sampleBuffer in buffers {
+                    if let audioInput = audioInput, audioInput.isReadyForMoreMediaData {
+                        audioInput.append(sampleBuffer)
+                    }
                 }
+                await manager.clear()
             }
-            preBufferData.removeAll()
+            preBufferManager = nil
 
             print("✅ Recording started with pre-buffer")
             errorMessage = nil
@@ -273,7 +340,35 @@ class ScreenRecorder: NSObject, ObservableObject {
             NSWorkspace.shared.open(prefsURL)
         }
     }
-    
+
+    // Test microphone before starting recording
+    private func testMicrophoneRecording() async -> Bool {
+        let testURL = FileManager.default.temporaryDirectory.appendingPathComponent("mic_test.wav")
+
+        let settings: [String: Any] = [
+            AVFormatIDKey: Int(kAudioFormatLinearPCM),
+            AVSampleRateKey: 48000,
+            AVNumberOfChannelsKey: 1,
+            AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
+        ]
+
+        do {
+            // Try to create and start recorder
+            let testRecorder = try AVAudioRecorder(url: testURL, settings: settings)
+            testRecorder.prepareToRecord()
+            let recordingStarted = testRecorder.record()
+            testRecorder.stop()
+
+            // Cleanup test file
+            try? FileManager.default.removeItem(at: testURL)
+
+            return recordingStarted
+        } catch {
+            print("❌ Mic test failed: \(error.localizedDescription)")
+            return false
+        }
+    }
+
     // Start recording system audio
     func startRecording(meetingTitle: String? = nil) async {
         guard !isRecording else {
@@ -288,6 +383,34 @@ class ScreenRecorder: NSObject, ObservableObject {
             // Check microphone permission first
             print("🔐 Checking microphone permission...")
             checkMicrophonePermission()
+
+            // Pre-flight check: Test mic recording
+            print("🎤 Testing microphone...")
+            let micWorking = await testMicrophoneRecording()
+            if !micWorking {
+                errorMessage = "Microphone unavailable. Please check System Settings > Privacy & Security > Microphone and ensure Minutly has access."
+                print("❌ Microphone test failed - aborting recording")
+
+                // Show alert to user
+                await MainActor.run {
+                    let alert = NSAlert()
+                    alert.messageText = "Microphone Not Available"
+                    alert.informativeText = "Recording requires microphone access. Please check your microphone permissions and ensure no other app is using the microphone."
+                    alert.alertStyle = .critical
+                    alert.addButton(withTitle: "Open Settings")
+                    alert.addButton(withTitle: "Cancel")
+
+                    let response = alert.runModal()
+                    if response == .alertFirstButtonReturn {
+                        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }
+                }
+
+                return
+            }
+            print("✅ Microphone test passed")
 
             // Get available content (displays)
             let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
@@ -359,17 +482,37 @@ class ScreenRecorder: NSObject, ObservableObject {
                     
                     let recording = micRecorder?.record() ?? false
                     print("   ⏺️ Recording started: \(recording)")
-                    
+
                     if recording {
                         print("   ✅ Microphone recording active")
                     } else {
+                        // CRITICAL: Abort entire recording if mic fails
                         errorMessage = "Failed to start microphone recording"
-                        print("   ❌ Microphone recording failed")
+                        print("   ❌ Microphone recording failed - ABORTING")
+
+                        // Cleanup and abort
+                        assetWriter?.cancelWriting()
+                        assetWriter = nil
+                        audioInput = nil
+                        isRecording = false
+
+                        // Show error to user
+                        await MainActor.run {
+                            let alert = NSAlert()
+                            alert.messageText = "Recording Failed"
+                            alert.informativeText = "Could not start microphone recording. The microphone may be in use by another application."
+                            alert.alertStyle = .warning
+                            alert.runModal()
+                        }
+
+                        throw NSError(domain: "com.minutly", code: 1001, userInfo: [NSLocalizedDescriptionKey: "Microphone recording failed"])
                     }
                 }
             } catch {
                 errorMessage = "Failed to start mic recorder: \(error.localizedDescription)"
                 print("   ❌ Mic recorder error: \(error.localizedDescription)")
+                isRecording = false
+                throw error
             }
             
             // Create asset writer for WAV
@@ -728,22 +871,14 @@ extension ScreenRecorder: SCStreamOutput {
             case .audio:
                 // If pre-buffering, store samples in buffer
                 if isPreBuffering {
-                    // Append buffer directly (ARC handles memory management)
-                    self.preBufferData.append(buffer.value)
-
-                    // Calculate total duration and remove old samples if > 30 seconds
-                    var totalDuration: TimeInterval = 0
-                    for sample in self.preBufferData {
-                        let duration = CMTimeGetSeconds(sample.duration)
-                        totalDuration += duration
-                    }
-
-                    // Remove oldest samples if we exceed 30 seconds
-                    while totalDuration > self.preBufferDuration && self.preBufferData.count > 1 {
-                        let removedBuffer = self.preBufferData.removeFirst()
-                        let removedDuration = CMTimeGetSeconds(removedBuffer.duration)
-                        totalDuration -= removedDuration
-                        // ARC automatically releases removedBuffer
+                    // Thread-safe append through actor
+                    Task {
+                        if let manager = self.preBufferManager {
+                            let success = await manager.append(buffer.value)
+                            if !success {
+                                print("⚠️ Pre-buffer full, consider increasing max sample count")
+                            }
+                        }
                     }
                 }
                 // If actively recording, write to file

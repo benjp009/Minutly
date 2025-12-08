@@ -1,0 +1,72 @@
+{
+  "source": "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/CloudUploadConsentView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Please specify...",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 132
+        }
+      },
+      {
+        "comment": "",
+        "key": "This recording contains %@ data",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 63
+        }
+      },
+      {
+        "comment": "",
+        "key": "Confirm Cloud Upload",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 57
+        }
+      },
+      {
+        "comment": "",
+        "key": "By uploading this recording to %@:\n• Your audio will be transmitted over HTTPS\n• %@ may store your data according to their privacy policy\n• You have the right to request data deletion\n• This action cannot be undone",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 92
+        }
+      },
+      {
+        "comment": "",
+        "key": "Privacy Notice",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 88
+        }
+      },
+      {
+        "comment": "",
+        "key": "Why are you uploading this recording?",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 108
+        }
+      },
+      {
+        "comment": "",
+        "key": "Decline",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 145
+        }
+      },
+      {
+        "comment": "",
+        "key": "Upload Recording",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 155
+        }
+      }
+    ]
+  },
+  "version": 1
+}

@@ -10,9 +10,15 @@ import Foundation
 class OpenAITranscriptionService {
     private let endpoint = URL(string: "https://api.openai.com/v1/audio/transcriptions")!
     private var apiKey: String
+    private let pinnedSession: URLSession
 
     init(apiKey: String) {
         self.apiKey = apiKey
+
+        // Initialize certificate pinning for api.openai.com
+        // In production, you should extract and pin the actual certificates
+        let delegate = CertificatePinningDelegate(pinnedDomains: [:])
+        self.pinnedSession = URLSession.createPinnedSession(with: delegate)
     }
 
     func updateAPIKey(_ key: String) {
@@ -42,7 +48,7 @@ class OpenAITranscriptionService {
             languageCode: languageCode
         )
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await pinnedSession.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {

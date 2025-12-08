@@ -18,6 +18,7 @@ class CalendarMonitorService: ObservableObject {
     private let eventStore = EKEventStore()
     private var monitorTimer: Timer?
     private var notifiedMeetings: Set<String> = []
+    private let confirmationManager = MeetingConfirmationManager.shared
 
     // Callback when meeting is about to start
     var onMeetingDetected: ((EKEvent) -> Void)?
@@ -93,7 +94,31 @@ class CalendarMonitorService: ObservableObject {
         print("🛑 Calendar monitoring stopped")
     }
 
+    // MARK: - Runtime Permission Check
+
+    private func hasCalendarPermission() async -> Bool {
+        if #available(macOS 14.0, *) {
+            let status = EKEventStore.authorizationStatus(for: .event)
+            let authorized = status == .fullAccess
+            if !authorized {
+                print("⛔ Calendar permission not authorized. Status: \(status.rawValue)")
+            }
+            return authorized
+        } else {
+            // For older macOS versions, assume permission if we can access calendar
+            let status = EKEventStore.authorizationStatus(for: .event)
+            return status == .authorized
+        }
+    }
+
     private func checkForUpcomingMeetings() async {
+        // Re-validate permissions at runtime (MEDIUM priority fix)
+        guard await hasCalendarPermission() else {
+            print("⛔ Calendar permission revoked - stopping monitoring")
+            stopMonitoring()
+            return
+        }
+
         let now = Date()
         let lookAheadMinutes = 5.0 // Look 5 minutes ahead
         let endDate = now.addingTimeInterval(lookAheadMinutes * 60)

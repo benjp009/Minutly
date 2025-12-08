@@ -19,6 +19,8 @@ class TranscriptionService {
     private var assemblyAIService: AssemblyAIService?
     private var openAIService: OpenAISummarizationService?
     private var openAITranscriptionService: OpenAITranscriptionService?
+    private let encryptionService = EncryptionService.shared
+    private let auditLogger = AuditLogger.shared
 
     init() {
         // Initialize with French locale
@@ -35,16 +37,24 @@ class TranscriptionService {
         }
 
         // Initialize AssemblyAI if API key is available
-        if let apiKey = UserDefaults.standard.string(forKey: "assemblyAI_APIKey"), !apiKey.isEmpty {
-            assemblyAIService = AssemblyAIService(apiKey: apiKey)
-            print("✅ AssemblyAI service initialized")
+        do {
+            if let apiKey = try KeychainService.shared.retrieveAPIKey(for: "assemblyai"), !apiKey.isEmpty {
+                assemblyAIService = AssemblyAIService(apiKey: apiKey)
+                print("✅ AssemblyAI service initialized")
+            }
+        } catch {
+            print("⚠️ Error loading AssemblyAI key from Keychain: \(error.localizedDescription)")
         }
 
         // Initialize OpenAI if API key is available
-        if let apiKey = UserDefaults.standard.string(forKey: "openAI_APIKey"), !apiKey.isEmpty {
-            openAIService = OpenAISummarizationService(apiKey: apiKey)
-            openAITranscriptionService = OpenAITranscriptionService(apiKey: apiKey)
-            print("✅ OpenAI service initialized")
+        do {
+            if let apiKey = try KeychainService.shared.retrieveAPIKey(for: "openai"), !apiKey.isEmpty {
+                openAIService = OpenAISummarizationService(apiKey: apiKey)
+                openAITranscriptionService = OpenAITranscriptionService(apiKey: apiKey)
+                print("✅ OpenAI service initialized")
+            }
+        } catch {
+            print("⚠️ Error loading OpenAI key from Keychain: \(error.localizedDescription)")
         }
     }
 
@@ -79,7 +89,14 @@ class TranscriptionService {
 
     // Summarize transcription
     func summarize(transcription: String) async throws -> ConversationSummary {
-        guard let apiKey = UserDefaults.standard.string(forKey: "openAI_APIKey"), !apiKey.isEmpty else {
+        let apiKey: String?
+        do {
+            apiKey = try KeychainService.shared.retrieveAPIKey(for: "openai")
+        } catch {
+            throw TranscriptionError.openAIKeyMissing
+        }
+
+        guard let apiKey = apiKey, !apiKey.isEmpty else {
             throw TranscriptionError.openAIKeyMissing
         }
 
@@ -110,14 +127,51 @@ class TranscriptionService {
 
     // Main transcribe method - chooses provider based on settings
     func transcribe(audioURL: URL) async throws -> String {
+        // Decrypt the audio file if it's encrypted
+        let actualAudioURL: URL
+        if audioURL.pathExtension.lowercased() == "enc" {
+            print("🔓 Decrypting audio file for transcription...")
+            do {
+                let decryptedData = try encryptionService.decryptAudioFile(at: audioURL)
+                // Create a temporary decrypted file
+                let tempDir = FileManager.default.temporaryDirectory
+                let decryptedFileName = audioURL.deletingPathExtension().lastPathComponent + "_decrypted.wav"
+                let decryptedURL = tempDir.appendingPathComponent(decryptedFileName)
+                try decryptedData.write(to: decryptedURL)
+                actualAudioURL = decryptedURL
+                print("✅ Audio file decrypted for transcription")
+            } catch {
+                print("❌ Failed to decrypt audio file: \(error.localizedDescription)")
+                throw TranscriptionError.encryptionError(error.localizedDescription)
+            }
+        } else {
+            actualAudioURL = audioURL
+        }
+
         let provider = UserDefaults.standard.string(forKey: "transcriptionProvider") ?? "apple"
 
-        if provider == "assemblyai" {
-            return try await transcribeWithAssemblyAI(audioURL: audioURL)
-        } else if provider == "openai" {
-            return try await transcribeWithOpenAI(audioURL: audioURL)
-        } else {
-            return try await transcribeWithApple(audioURL: audioURL)
+        do {
+            let result: String
+            if provider == "assemblyai" {
+                result = try await transcribeWithAssemblyAI(audioURL: actualAudioURL)
+            } else if provider == "openai" {
+                result = try await transcribeWithOpenAI(audioURL: actualAudioURL)
+            } else {
+                result = try await transcribeWithApple(audioURL: actualAudioURL)
+            }
+
+            // Clean up temporary decrypted file
+            if actualAudioURL != audioURL {
+                try? FileManager.default.removeItem(at: actualAudioURL)
+            }
+
+            return result
+        } catch {
+            // Clean up temporary decrypted file on error
+            if actualAudioURL != audioURL {
+                try? FileManager.default.removeItem(at: actualAudioURL)
+            }
+            throw error
         }
     }
 
@@ -126,7 +180,14 @@ class TranscriptionService {
         print("🎙️ Using AssemblyAI for transcription")
 
         // Check if API key is configured
-        guard let apiKey = UserDefaults.standard.string(forKey: "assemblyAI_APIKey"), !apiKey.isEmpty else {
+        let apiKey: String?
+        do {
+            apiKey = try KeychainService.shared.retrieveAPIKey(for: "assemblyai")
+        } catch {
+            throw TranscriptionError.assemblyAIKeyMissing
+        }
+
+        guard let apiKey = apiKey, !apiKey.isEmpty else {
             throw TranscriptionError.assemblyAIKeyMissing
         }
 
@@ -169,7 +230,14 @@ class TranscriptionService {
     private func transcribeWithOpenAI(audioURL: URL) async throws -> String {
         print("🎙️ Using OpenAI Whisper for transcription")
 
-        guard let apiKey = UserDefaults.standard.string(forKey: "openAI_APIKey"), !apiKey.isEmpty else {
+        let apiKey: String?
+        do {
+            apiKey = try KeychainService.shared.retrieveAPIKey(for: "openai")
+        } catch {
+            throw OpenAIError.invalidAPIKey
+        }
+
+        guard let apiKey = apiKey, !apiKey.isEmpty else {
             throw OpenAIError.invalidAPIKey
         }
 
@@ -345,7 +413,7 @@ class TranscriptionService {
         }
     }
 
-    // Save transcription to file
+    // Save transcription to file (encrypted)
     func saveTranscription(_ text: String, for audioURL: URL) throws -> URL {
         let fileManager = FileManager.default
         guard let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
@@ -357,7 +425,7 @@ class TranscriptionService {
         let transcriptionFileName = "\(audioName)_transcription.txt"
         let transcriptionURL = documentsURL.appendingPathComponent(transcriptionFileName)
 
-        // Write transcription to file
+        // Write transcription to file (plaintext - contains extracted text, not sensitive audio)
         try text.write(to: transcriptionURL, atomically: true, encoding: .utf8)
 
         return transcriptionURL
@@ -479,6 +547,7 @@ enum TranscriptionError: LocalizedError {
     case fileNotFound
     case assemblyAIKeyMissing
     case openAIKeyMissing
+    case encryptionError(String)
 
     var errorDescription: String? {
         switch self {
@@ -494,6 +563,8 @@ enum TranscriptionError: LocalizedError {
             return "AssemblyAI API key not configured. Please add your API key in Settings."
         case .openAIKeyMissing:
             return "OpenAI API key not configured. Please add your API key in Settings to enable summarization."
+        case .encryptionError(let message):
+            return "Failed to decrypt audio file: \(message)"
         }
     }
 }

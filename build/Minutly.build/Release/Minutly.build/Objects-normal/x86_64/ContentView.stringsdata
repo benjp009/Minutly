@@ -1,0 +1,256 @@
+{
+  "source": "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/ContentView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Meeting Starting",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 77
+        }
+      },
+      {
+        "comment": "",
+        "key": "Start Recording",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 78
+        }
+      },
+      {
+        "comment": "",
+        "key": "Ignore",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 95
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@\n\nThe last 30 seconds will be included in the recording.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 113
+        }
+      },
+      {
+        "comment": "",
+        "key": "Stop Recording",
+        "location": {
+          "startingColumn": 53,
+          "startingLine": 177
+        }
+      },
+      {
+        "comment": "",
+        "key": "New recording",
+        "location": {
+          "startingColumn": 72,
+          "startingLine": 177
+        }
+      },
+      {
+        "comment": "",
+        "key": "No recordings yet",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 225
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pre-buffering meeting...",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 281
+        }
+      },
+      {
+        "comment": "",
+        "key": "Recordings",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 205
+        }
+      },
+      {
+        "comment": "",
+        "key": "Upcoming Meetings",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 261
+        }
+      },
+      {
+        "comment": "",
+        "key": "Settings",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 310
+        }
+      },
+      {
+        "comment": "",
+        "key": "Select a recording to view details.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 351
+        }
+      },
+      {
+        "comment": "",
+        "key": "Welcome to Minutly",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 413
+        }
+      },
+      {
+        "comment": "",
+        "key": "Capture your meetings, transcribe conversations, and generate summaries from one dashboard.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 416
+        }
+      },
+      {
+        "comment": "",
+        "key": "Start Recording",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 424
+        }
+      },
+      {
+        "comment": "",
+        "key": "Details",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 482
+        }
+      },
+      {
+        "comment": "",
+        "key": "Recording Name",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 523
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pause",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 539
+        }
+      },
+      {
+        "comment": "",
+        "key": "Play",
+        "location": {
+          "startingColumn": 49,
+          "startingLine": 539
+        }
+      },
+      {
+        "comment": "",
+        "key": "Transcript",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 578
+        }
+      },
+      {
+        "comment": "",
+        "key": "Export",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 581
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 584
+        }
+      },
+      {
+        "comment": "",
+        "key": "Transcribing... Please wait.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 601
+        }
+      },
+      {
+        "comment": "",
+        "key": "No transcript yet.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 611
+        }
+      },
+      {
+        "comment": "",
+        "key": "Transcribe Recording",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 621
+        }
+      },
+      {
+        "comment": "",
+        "key": "Summary",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 642
+        }
+      },
+      {
+        "comment": "",
+        "key": "Copy",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 645
+        }
+      },
+      {
+        "comment": "",
+        "key": "Export",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 648
+        }
+      },
+      {
+        "comment": "",
+        "key": "Generating summary...",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 657
+        }
+      },
+      {
+        "comment": "",
+        "key": "No summary yet.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 667
+        }
+      },
+      {
+        "comment": "",
+        "key": "Generate AI Summary",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 677
+        }
+      }
+    ]
+  },
+  "version": 1
+}

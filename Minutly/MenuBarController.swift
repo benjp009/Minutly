@@ -16,6 +16,8 @@ class MenuBarController: ObservableObject {
     private var popover: NSPopover?
     @Published var isMenuBarMode = false
     @Published var selectedRecordingURL: URL?
+    private var blinkingTimer: Timer?
+    private var isBlinkingOn = false
 
     var recorder: ScreenRecorder?
 
@@ -78,13 +80,10 @@ class MenuBarController: ObservableObject {
     }
 
     @objc private func handleClick(_ sender: NSStatusBarButton) {
-        guard let event = NSApp.currentEvent else { return }
+        guard NSApp.currentEvent != nil else { return }
 
-        if event.type == .rightMouseUp {
-            showMenu()
-        } else {
-            togglePopover()
-        }
+        // Show menu on both left and right click
+        showMenu()
     }
 
     private func togglePopover() {
@@ -103,14 +102,14 @@ class MenuBarController: ObservableObject {
         // Calculate position to align sidebar to left
         let buttonFrame = button.window?.convertToScreen(button.frame) ?? .zero
 
-        // Position the popover so the sidebar (281px wide) aligns with the left edge
+        // Position the popover so the sidebar (300px wide) aligns with the left edge
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
 
         // Adjust the popover window position to align sidebar to the left of the button
         if let popoverWindow = popover.contentViewController?.view.window {
             var frame = popoverWindow.frame
-            // Move window left so that the sidebar (first 281px) aligns with button
-            frame.origin.x = buttonFrame.minX - 281
+            // Move window left so that the sidebar (first 300px) aligns with button
+            frame.origin.x = buttonFrame.minX - 300
             popoverWindow.setFrame(frame, display: true)
         }
     }
@@ -118,20 +117,21 @@ class MenuBarController: ObservableObject {
     private func showMenu() {
         let menu = NSMenu()
 
-        // Open App
-        let openAppItem = NSMenuItem(title: "Open Minutly", action: #selector(handleOpenApp), keyEquivalent: "o")
-        openAppItem.target = self
-        menu.addItem(openAppItem)
+        // Start/Stop Recording action
+        let recordingTitle = (recorder?.isRecording ?? false) ? "Stop Recording" : "Start Recording"
+        let recordingIcon = NSImage(systemSymbolName: "record.circle.fill", accessibilityDescription: "Recording")
+        let startRecordingItem = NSMenuItem(title: recordingTitle, action: #selector(handleToggleRecording), keyEquivalent: "")
+        startRecordingItem.target = self
+        startRecordingItem.image = recordingIcon
+        menu.addItem(startRecordingItem)
 
         menu.addItem(NSMenuItem.separator())
 
-        // Recordings section
+        // Last 3 Recordings section
         if let recordings = recorder?.recordings, !recordings.isEmpty {
-            let recordingsHeader = NSMenuItem(title: "Recordings", action: nil, keyEquivalent: "")
-            recordingsHeader.isEnabled = false
-            menu.addItem(recordingsHeader)
+            let recordingsToShow = Array(recordings.prefix(3))
 
-            for recording in recordings.prefix(10) {
+            for recording in recordingsToShow {
                 let fileName = recording.deletingPathExtension().lastPathComponent
                 let item = NSMenuItem(title: fileName, action: #selector(handleRecordingSelected(_:)), keyEquivalent: "")
                 item.target = self
@@ -139,14 +139,15 @@ class MenuBarController: ObservableObject {
                 menu.addItem(item)
             }
 
-            if recordings.count > 10 {
-                let moreItem = NSMenuItem(title: "... and \(recordings.count - 10) more", action: #selector(handleOpenApp), keyEquivalent: "")
-                moreItem.target = self
-                menu.addItem(moreItem)
-            }
-
             menu.addItem(NSMenuItem.separator())
         }
+
+        // Open App
+        let openAppItem = NSMenuItem(title: "Open App", action: #selector(handleOpenApp), keyEquivalent: "o")
+        openAppItem.target = self
+        menu.addItem(openAppItem)
+
+        menu.addItem(NSMenuItem.separator())
 
         // Quit
         let quitItem = NSMenuItem(title: "Quit Minutly", action: #selector(handleQuit), keyEquivalent: "q")
@@ -157,6 +158,67 @@ class MenuBarController: ObservableObject {
         statusItem?.menu = menu
         statusItem?.button?.performClick(nil)
         statusItem?.menu = nil
+    }
+
+    @objc private func handleToggleRecording() {
+        guard let recorder = recorder else { return }
+
+        Task {
+            if recorder.isRecording {
+                await recorder.stopRecording()
+                stopBlinking()
+            } else {
+                await recorder.startRecording()
+                startBlinking()
+            }
+        }
+    }
+
+    private func startBlinking() {
+        stopBlinking()
+        isBlinkingOn = false
+        blinkingTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.isBlinkingOn.toggle()
+                self?.updateBlinkingIcon()
+            }
+        }
+    }
+
+    private func stopBlinking() {
+        blinkingTimer?.invalidate()
+        blinkingTimer = nil
+        isBlinkingOn = false
+    }
+
+    private func updateBlinkingIcon() {
+        guard let button = statusItem?.button else { return }
+
+        if isBlinkingOn {
+            // Show red recording icon
+            button.image = NSImage(systemSymbolName: "record.circle.fill", accessibilityDescription: "Recording")
+            button.image?.isTemplate = false
+            if let image = button.image {
+                let coloredImage = NSImage(size: image.size)
+                coloredImage.lockFocus()
+                NSColor.red.set()
+                image.draw(at: .zero, from: NSRect(origin: .zero, size: image.size), operation: .sourceOver, fraction: 1.0)
+                coloredImage.unlockFocus()
+                button.image = coloredImage
+            }
+        } else {
+            // Show dark black recording icon (dimmed)
+            button.image = NSImage(systemSymbolName: "record.circle.fill", accessibilityDescription: "Recording")
+            button.image?.isTemplate = false
+            if let image = button.image {
+                let coloredImage = NSImage(size: image.size)
+                coloredImage.lockFocus()
+                NSColor.black.set()
+                image.draw(at: .zero, from: NSRect(origin: .zero, size: image.size), operation: .sourceOver, fraction: 0.4)
+                coloredImage.unlockFocus()
+                button.image = coloredImage
+            }
+        }
     }
 
     @objc private func handleOpenApp() {
@@ -185,18 +247,9 @@ class MenuBarController: ObservableObject {
         guard let button = statusItem?.button else { return }
 
         if isRecording {
-            button.image = NSImage(systemSymbolName: "record.circle.fill", accessibilityDescription: "Recording")
-            button.image?.isTemplate = false
-            // Make it red
-            if let image = button.image {
-                let coloredImage = NSImage(size: image.size)
-                coloredImage.lockFocus()
-                NSColor.red.set()
-                image.draw(at: .zero, from: NSRect(origin: .zero, size: image.size), operation: .sourceOver, fraction: 1.0)
-                coloredImage.unlockFocus()
-                button.image = coloredImage
-            }
+            startBlinking()
         } else if isPreBuffering {
+            stopBlinking()
             button.image = NSImage(systemSymbolName: "circlebadge.fill", accessibilityDescription: "Pre-buffering")
             button.image?.isTemplate = false
             // Make it orange
@@ -209,6 +262,7 @@ class MenuBarController: ObservableObject {
                 button.image = coloredImage
             }
         } else {
+            stopBlinking()
             // Reset to default AppIcon
             if let appIcon = NSImage(named: "AppIcon") {
                 let resizedIcon = NSImage(size: NSSize(width: 18, height: 18))
@@ -231,5 +285,12 @@ class MenuBarController: ObservableObject {
         if isMenuBarMode {
             setupPopover()
         }
+    }
+
+    deinit {
+        // Cleanup timer in deinit - timer is safe to invalidate from any context
+        blinkingTimer?.invalidate()
+        blinkingTimer = nil
+        print("🔄 MenuBarController deallocated")
     }
 }

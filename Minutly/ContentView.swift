@@ -9,6 +9,7 @@ import SwiftUI
 import AVFoundation
 import EventKit
 import AppKit
+import Combine
 
 struct ContentView: View {
     @EnvironmentObject var recorder: ScreenRecorder
@@ -76,11 +77,43 @@ struct ContentView: View {
         .alert("Meeting Starting", isPresented: $showMeetingAlert) {
             Button("Start Recording") {
                 Task {
+                    // Record user confirmation
+                    if let meeting = calendarMonitor.upcomingMeeting {
+                        let confirmationManager = MeetingConfirmationManager.shared
+                        do {
+                            try confirmationManager.recordMeetingConfirmation(
+                                eventID: meeting.consistentID,
+                                eventTitle: meeting.title ?? "Untitled",
+                                eventDate: meeting.startDate,
+                                userConfirmed: true,
+                                method: "manual"
+                            )
+                        } catch {
+                            print("Failed to record meeting confirmation: \(error.localizedDescription)")
+                        }
+                    }
+
                     await recorder.confirmRecordingFromPreBuffer()
                 }
             }
             Button("Ignore", role: .cancel) {
                 Task {
+                    // Record user decline
+                    if let meeting = calendarMonitor.upcomingMeeting {
+                        let confirmationManager = MeetingConfirmationManager.shared
+                        do {
+                            try confirmationManager.recordMeetingConfirmation(
+                                eventID: meeting.consistentID,
+                                eventTitle: meeting.title ?? "Untitled",
+                                eventDate: meeting.startDate,
+                                userConfirmed: false,
+                                method: "manual"
+                            )
+                        } catch {
+                            print("Failed to record meeting decline: \(error.localizedDescription)")
+                        }
+                    }
+
                     await recorder.cancelPreBuffer()
                 }
             }
@@ -91,57 +124,76 @@ struct ContentView: View {
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Header with logo and calendar/toggle icon
-            HStack(spacing: 8) {
-                Image(nsImage: NSImage(named: "AppIcon") ?? NSImage())
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 20, height: 20)
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
-
-                Spacer()
-
-                if !isSidebarCollapsed {
-                    Image(systemName: "calendar")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Color(hex: "A9A9A9"))
-                }
-
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        isSidebarCollapsed.toggle()
+            // Header with logo and collapse toggle
+            if isSidebarCollapsed {
+                VStack {
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            isSidebarCollapsed.toggle()
+                        }
+                    }) {
+                        Image(systemName: "sidebar.left")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Color(hex: "A9A9A9"))
+                            .rotationEffect(.degrees(90))
                     }
-                }) {
-                    Image(systemName: isSidebarCollapsed ? "sidebar.right" : "sidebar.left")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Color(hex: "A9A9A9"))
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
+                .frame(height: 30)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 10)
+            } else {
+                HStack(spacing: 8) {
+                    Image(nsImage: NSImage(named: "AppIcon") ?? NSImage())
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 20, height: 20)
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+
+                    Spacer()
+
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            isSidebarCollapsed.toggle()
+                        }
+                    }) {
+                        Image(systemName: "sidebar.left")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Color(hex: "A9A9A9"))
+                    }
+                    .buttonStyle(.plain)
+                }
+                .frame(height: 30)
+                .padding(.horizontal, 10)
+                .padding(.top, 10)
             }
-            .frame(height: 30)
-            .padding(.horizontal, 10)
-            .padding(.top, 10)
 
             // New Recording Button
             Button(action: startOrStopRecording) {
-                HStack(spacing: 8) {
+                if isSidebarCollapsed {
                     Image(systemName: recorder.isRecording ? "stop.circle.fill" : "mic.fill")
                         .font(.system(size: 12))
                         .foregroundStyle(.black)
+                        .frame(height: 30)
+                        .frame(maxWidth: .infinity)
+                } else {
+                    HStack(spacing: 8) {
+                        Image(systemName: recorder.isRecording ? "stop.circle.fill" : "mic.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.black)
 
-                    if !isSidebarCollapsed {
                         Text(recorder.isRecording ? "Stop Recording" : "New recording")
                             .font(.system(size: 12))
                             .foregroundStyle(.black)
 
                         Spacer()
                     }
+                    .frame(height: 30)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 10)
+                    .background(recorder.isRecording ? Color.red.opacity(0.1) : Color.clear)
+                    .cornerRadius(6)
                 }
-                .frame(height: 30)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 10)
-                .background(recorder.isRecording ? Color.red.opacity(0.1) : Color.clear)
-                .cornerRadius(6)
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 10)
@@ -243,25 +295,6 @@ struct ContentView: View {
                         }
                     }
                 }
-            } else {
-                // Collapsed view - show just icons
-                ScrollView {
-                    VStack(spacing: 4) {
-                        ForEach(recorder.recordings.prefix(5), id: \.self) { url in
-                            Button {
-                                selectedRecordingURL = url
-                                showWelcome = false
-                            } label: {
-                                Circle()
-                                    .fill(selectedRecordingURL == url ? Color.accentColor.opacity(0.3) : Color.gray.opacity(0.2))
-                                    .frame(width: 8, height: 8)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.top, 12)
-                    .frame(maxWidth: .infinity)
-                }
             }
 
             Spacer()
@@ -270,28 +303,34 @@ struct ContentView: View {
             Button {
                 showSettings = true
             } label: {
-                HStack(spacing: 8) {
+                if isSidebarCollapsed {
                     Image(systemName: "gearshape")
                         .font(.system(size: 12))
                         .foregroundStyle(.black)
+                        .frame(height: 30)
+                        .frame(maxWidth: .infinity)
+                } else {
+                    HStack(spacing: 8) {
+                        Image(systemName: "gearshape")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.black)
 
-                    if !isSidebarCollapsed {
                         Text("Settings")
                             .font(.system(size: 12))
                             .foregroundStyle(.black)
 
                         Spacer()
                     }
+                    .frame(height: 30)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 10)
                 }
-                .frame(height: 30)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 10)
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 10)
             .padding(.bottom, 10)
         }
-        .frame(width: isSidebarCollapsed ? 50 : 281)
+        .frame(width: isSidebarCollapsed ? 50 : 300)
         .background(Color(hex: "F9F9F9"))
     }
 
@@ -413,6 +452,7 @@ private struct RecordingDetailView: View {
     @State private var isPlaying = false
     @State private var audioPlayer: AVAudioPlayer?
     @State private var timer: Timer?
+    @State private var playbackCancellable: AnyCancellable?
     @State private var currentTime: TimeInterval = 0
     @State private var playerDelegate: PlayerDelegate?
     @State private var isEditingName = false
@@ -674,17 +714,27 @@ private struct RecordingDetailView: View {
             audioPlayer?.delegate = playerDelegate
             audioPlayer?.play()
             isPlaying = true
-            timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
-                currentTime = audioPlayer?.currentTime ?? 0
-            }
+
+            // Use Combine timer with automatic cleanup instead of DispatchSourceTimer
+            playbackCancellable = Timer.publish(every: 0.05, on: .main, in: .common)
+                .autoconnect()
+                .sink { _ in
+                    currentTime = audioPlayer?.currentTime ?? 0
+                }
         } catch {
             print("Failed to play audio: \(error)")
         }
     }
 
     private func stopPlayback() {
+        // Cancel Combine timer subscription
+        playbackCancellable?.cancel()
+        playbackCancellable = nil
+
+        // Legacy timer cleanup (for safety)
         timer?.invalidate()
         timer = nil
+
         audioPlayer?.stop()
         audioPlayer = nil
         playerDelegate = nil

@@ -1,0 +1,120 @@
+{
+  "source": "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/RecordingRow.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Recording Name",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 41
+        }
+      },
+      {
+        "comment": "",
+        "key": "Transcribe audio",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 89
+        }
+      },
+      {
+        "comment": "",
+        "key": "Generate AI summary",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 103
+        }
+      },
+      {
+        "comment": "",
+        "key": "Transcription",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 134
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete transcription and transcribe again",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 149
+        }
+      },
+      {
+        "comment": "",
+        "key": "Export transcription",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 157
+        }
+      },
+      {
+        "comment": "",
+        "key": "Transcribing... %lld%%",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 176
+        }
+      },
+      {
+        "comment": "",
+        "key": "Retry",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 207
+        }
+      },
+      {
+        "comment": "",
+        "key": "Transcription Failed",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 196
+        }
+      },
+      {
+        "comment": "",
+        "key": "AI Summary",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 228
+        }
+      },
+      {
+        "comment": "",
+        "key": "Export summary",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 242
+        }
+      },
+      {
+        "comment": "",
+        "key": "Generating summary...",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 253
+        }
+      },
+      {
+        "comment": "",
+        "key": "Retry",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 284
+        }
+      },
+      {
+        "comment": "",
+        "key": "Summary Failed",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 273
+        }
+      }
+    ]
+  },
+  "version": 1
+}

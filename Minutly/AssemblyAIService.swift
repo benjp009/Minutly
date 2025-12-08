@@ -10,9 +10,15 @@ import Foundation
 class AssemblyAIService {
     private let baseURL = "https://api.assemblyai.com/v2"
     private var apiKey: String
+    private let pinnedSession: URLSession
 
     init(apiKey: String) {
         self.apiKey = apiKey
+
+        // Initialize certificate pinning for api.assemblyai.com
+        // In production, you should extract and pin the actual certificates
+        let delegate = CertificatePinningDelegate(pinnedDomains: [:])
+        self.pinnedSession = URLSession.createPinnedSession(with: delegate)
     }
 
     func updateAPIKey(_ key: String) {
@@ -65,7 +71,7 @@ class AssemblyAIService {
 
         let (data, response): (Data, URLResponse)
         do {
-            (data, response) = try await URLSession.shared.data(for: request)
+            (data, response) = try await pinnedSession.data(for: request)
         } catch {
             print("❌ Network error: \(error.localizedDescription)")
             throw AssemblyAIError.networkError(error.localizedDescription)
@@ -119,7 +125,7 @@ class AssemblyAIService {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(requestBody)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await pinnedSession.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw AssemblyAIError.invalidResponse
@@ -155,13 +161,16 @@ class AssemblyAIService {
         let maxAttempts = 300 // 5 minutes max (300 * 1 second)
 
         while attempts < maxAttempts {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await pinnedSession.data(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
                 throw AssemblyAIError.invalidResponse
             }
 
             let transcript = try JSONDecoder().decode(AssemblyAITranscript.self, from: data)
+
+            // Validate transcript structure
+            try transcript.validate()
 
             switch transcript.status {
             case "completed":
@@ -208,6 +217,24 @@ struct AssemblyAITranscript: Codable {
         let start: Int
         let end: Int
         let confidence: Double
+
+        func validate() throws {
+            guard !speaker.trimmingCharacters(in: .whitespaces).isEmpty else {
+                throw AssemblyAIError.invalidTranscript(reason: "Speaker name is empty")
+            }
+            guard !text.trimmingCharacters(in: .whitespaces).isEmpty else {
+                throw AssemblyAIError.invalidTranscript(reason: "Utterance text is empty")
+            }
+            guard text.count < 10000 else {
+                throw AssemblyAIError.invalidTranscript(reason: "Utterance text is too long")
+            }
+            guard start >= 0 && end >= start else {
+                throw AssemblyAIError.invalidTranscript(reason: "Invalid time boundaries")
+            }
+            guard confidence >= 0.0 && confidence <= 1.0 else {
+                throw AssemblyAIError.invalidTranscript(reason: "Invalid confidence value")
+            }
+        }
     }
 
     struct Word: Codable {
@@ -230,6 +257,47 @@ struct AssemblyAITranscript: Codable {
         }
         return formatted
     }
+
+    // Validate transcript structure
+    func validate() throws {
+        // Validate ID is not empty
+        guard !id.trimmingCharacters(in: .whitespaces).isEmpty else {
+            throw AssemblyAIError.invalidTranscript(reason: "Transcript ID is empty")
+        }
+
+        // Validate status is valid
+        let validStatuses = ["queued", "processing", "completed", "error"]
+        guard validStatuses.contains(status) else {
+            throw AssemblyAIError.invalidTranscript(reason: "Invalid status: \(status)")
+        }
+
+        // If completed, validate text exists
+        if status == "completed" {
+            guard let text = text, !text.trimmingCharacters(in: .whitespaces).isEmpty else {
+                throw AssemblyAIError.invalidTranscript(reason: "Completed transcription has no text")
+            }
+            guard text.count < 500000 else {
+                throw AssemblyAIError.invalidTranscript(reason: "Transcript text is too long")
+            }
+        }
+
+        // Validate utterances if present
+        if let utterances = utterances {
+            guard utterances.count < 10000 else {
+                throw AssemblyAIError.invalidTranscript(reason: "Too many utterances")
+            }
+            for utterance in utterances {
+                try utterance.validate()
+            }
+        }
+
+        // Validate words if present
+        if let words = words {
+            guard words.count < 100000 else {
+                throw AssemblyAIError.invalidTranscript(reason: "Too many words")
+            }
+        }
+    }
 }
 
 // MARK: - Errors
@@ -237,6 +305,7 @@ struct AssemblyAITranscript: Codable {
 enum AssemblyAIError: LocalizedError {
     case invalidURL
     case invalidResponse
+    case invalidTranscript(reason: String)
     case uploadFailed(statusCode: Int, message: String)
     case transcriptionFailed(statusCode: Int, message: String)
     case timeout
@@ -249,6 +318,8 @@ enum AssemblyAIError: LocalizedError {
             return "Invalid API URL"
         case .invalidResponse:
             return "Invalid response from AssemblyAI"
+        case .invalidTranscript(let reason):
+            return "Invalid transcript: \(reason)"
         case .uploadFailed(let statusCode, let message):
             return "Upload failed (HTTP \(statusCode)): \(message)"
         case .transcriptionFailed(let statusCode, let message):

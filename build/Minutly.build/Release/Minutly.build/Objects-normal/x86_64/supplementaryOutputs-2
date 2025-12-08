@@ -1,0 +1,12 @@
+{
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/AssemblyAIService.swift" : {
+    "abi-baseline-json" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/x86_64/Minutly.abi.json",
+    "const-values" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/x86_64/Minutly-primary.swiftconstvalues",
+    "dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/x86_64/Minutly-primary.d",
+    "diagnostics" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/x86_64/Minutly-primary.dia",
+    "objc-header" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/x86_64/Minutly-Swift.h",
+    "swiftdoc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/x86_64/Minutly.swiftdoc",
+    "swiftmodule" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/x86_64/Minutly.swiftmodule",
+    "swiftsourceinfo" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/x86_64/Minutly.swiftsourceinfo"
+  }
+}

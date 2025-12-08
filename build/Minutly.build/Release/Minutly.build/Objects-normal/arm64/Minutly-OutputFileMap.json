@@ -1,0 +1,136 @@
+{
+  "" : {
+    "const-values" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/Minutly-primary.swiftconstvalues",
+    "dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/Minutly-primary.d",
+    "diagnostics" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/Minutly-primary.dia",
+    "emit-module-dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/Minutly-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/Minutly-primary-emit-module.dia",
+    "pch" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/Minutly-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/Minutly-primary.swiftdeps"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/AssemblyAIService.swift" : {
+    "index-unit-output-path" : "/Minutly.build/Release/Minutly.build/Objects-normal/arm64/AssemblyAIService.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/AssemblyAIService.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/AssemblyAIService.o"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/AudioPlayerView.swift" : {
+    "index-unit-output-path" : "/Minutly.build/Release/Minutly.build/Objects-normal/arm64/AudioPlayerView.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/AudioPlayerView.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/AudioPlayerView.o"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/AuditLogger.swift" : {
+    "index-unit-output-path" : "/Minutly.build/Release/Minutly.build/Objects-normal/arm64/AuditLogger.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/AuditLogger.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/AuditLogger.o"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/CalendarMonitorService.swift" : {
+    "index-unit-output-path" : "/Minutly.build/Release/Minutly.build/Objects-normal/arm64/CalendarMonitorService.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/CalendarMonitorService.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/CalendarMonitorService.o"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/CertificatePinningDelegate.swift" : {
+    "index-unit-output-path" : "/Minutly.build/Release/Minutly.build/Objects-normal/arm64/CertificatePinningDelegate.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/CertificatePinningDelegate.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/CertificatePinningDelegate.o"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/CloudDataDeletionService.swift" : {
+    "index-unit-output-path" : "/Minutly.build/Release/Minutly.build/Objects-normal/arm64/CloudDataDeletionService.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/CloudDataDeletionService.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/CloudDataDeletionService.o"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/CloudUploadConsentView.swift" : {
+    "index-unit-output-path" : "/Minutly.build/Release/Minutly.build/Objects-normal/arm64/CloudUploadConsentView.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/CloudUploadConsentView.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/CloudUploadConsentView.o"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/ContentView.swift" : {
+    "index-unit-output-path" : "/Minutly.build/Release/Minutly.build/Objects-normal/arm64/ContentView.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/ContentView.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/ContentView.o"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/EncryptionService.swift" : {
+    "index-unit-output-path" : "/Minutly.build/Release/Minutly.build/Objects-normal/arm64/EncryptionService.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/EncryptionService.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/EncryptionService.o"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/KeychainService.swift" : {
+    "index-unit-output-path" : "/Minutly.build/Release/Minutly.build/Objects-normal/arm64/KeychainService.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/KeychainService.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/KeychainService.o"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/MeetingConfirmationManager.swift" : {
+    "index-unit-output-path" : "/Minutly.build/Release/Minutly.build/Objects-normal/arm64/MeetingConfirmationManager.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/MeetingConfirmationManager.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/MeetingConfirmationManager.o"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/MenuBarController.swift" : {
+    "index-unit-output-path" : "/Minutly.build/Release/Minutly.build/Objects-normal/arm64/MenuBarController.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/MenuBarController.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/MenuBarController.o"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/MinutlyApp.swift" : {
+    "index-unit-output-path" : "/Minutly.build/Release/Minutly.build/Objects-normal/arm64/MinutlyApp.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/MinutlyApp.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/MinutlyApp.o"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/OpenAISummarizationService.swift" : {
+    "index-unit-output-path" : "/Minutly.build/Release/Minutly.build/Objects-normal/arm64/OpenAISummarizationService.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/OpenAISummarizationService.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/OpenAISummarizationService.o"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/OpenAITranscriptionService.swift" : {
+    "index-unit-output-path" : "/Minutly.build/Release/Minutly.build/Objects-normal/arm64/OpenAITranscriptionService.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/OpenAITranscriptionService.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/OpenAITranscriptionService.o"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/PlanSelectionView.swift" : {
+    "index-unit-output-path" : "/Minutly.build/Release/Minutly.build/Objects-normal/arm64/PlanSelectionView.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/PlanSelectionView.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/PlanSelectionView.o"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/RecordingMetadata.swift" : {
+    "index-unit-output-path" : "/Minutly.build/Release/Minutly.build/Objects-normal/arm64/RecordingMetadata.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/RecordingMetadata.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/RecordingMetadata.o"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/RecordingRow.swift" : {
+    "index-unit-output-path" : "/Minutly.build/Release/Minutly.build/Objects-normal/arm64/RecordingRow.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/RecordingRow.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/RecordingRow.o"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/ScreenRecorder.swift" : {
+    "index-unit-output-path" : "/Minutly.build/Release/Minutly.build/Objects-normal/arm64/ScreenRecorder.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/ScreenRecorder.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/ScreenRecorder.o"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/SettingsView.swift" : {
+    "index-unit-output-path" : "/Minutly.build/Release/Minutly.build/Objects-normal/arm64/SettingsView.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/SettingsView.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/SettingsView.o"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/SplashScreenView.swift" : {
+    "index-unit-output-path" : "/Minutly.build/Release/Minutly.build/Objects-normal/arm64/SplashScreenView.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/SplashScreenView.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/SplashScreenView.o"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/SummaryView.swift" : {
+    "index-unit-output-path" : "/Minutly.build/Release/Minutly.build/Objects-normal/arm64/SummaryView.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/SummaryView.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/SummaryView.o"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/TranscriptionService.swift" : {
+    "index-unit-output-path" : "/Minutly.build/Release/Minutly.build/Objects-normal/arm64/TranscriptionService.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/TranscriptionService.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/TranscriptionService.o"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/Minutly/WaveformView.swift" : {
+    "index-unit-output-path" : "/Minutly.build/Release/Minutly.build/Objects-normal/arm64/WaveformView.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/WaveformView.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/WaveformView.o"
+  },
+  "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "index-unit-output-path" : "/Minutly.build/Release/Minutly.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/benjaminpatin/Documents/French SaaS/Minutly/Minutly/build/Minutly.build/Release/Minutly.build/Objects-normal/arm64/GeneratedAssetSymbols.o"
+  }
+}

@@ -25,6 +25,47 @@ class AssemblyAIService {
         self.apiKey = key
     }
 
+    // MARK: - API Key Validation
+
+    static func validateAPIKey(_ apiKey: String) async throws -> Bool {
+        let baseURL = "https://api.assemblyai.com/v2"
+        let endpoint = "\(baseURL)/realtime/token?expires_in=60"
+
+        guard let url = URL(string: endpoint) else {
+            throw AssemblyAIError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue(apiKey, forHTTPHeaderField: "authorization")
+
+        // Use certificate pinning for production
+        let delegate = CertificatePinningDelegate(pinnedDomains: [:])
+        let session = URLSession.createPinnedSession(with: delegate)
+
+        do {
+            let (_, response) = try await session.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw AssemblyAIError.invalidResponse
+            }
+
+            // Status 200 = valid key, 401 = invalid key
+            if httpResponse.statusCode == 200 {
+                return true
+            } else if httpResponse.statusCode == 401 {
+                throw AssemblyAIError.invalidAPIKey
+            } else {
+                throw AssemblyAIError.transcriptionFailed(statusCode: httpResponse.statusCode, message: "API validation failed")
+            }
+        } catch {
+            if error is AssemblyAIError {
+                throw error
+            }
+            throw AssemblyAIError.networkError(error.localizedDescription)
+        }
+    }
+
     // MARK: - Transcription
 
     func transcribe(audioURL: URL, languageCode: String = "fr", onProgress: @escaping (Double, String) -> Void) async throws -> AssemblyAITranscript {
@@ -212,15 +253,15 @@ struct AssemblyAITranscript: Codable {
     let words: [Word]?
 
     struct Utterance: Codable {
-        let speaker: String
+        let speaker: Int
         let text: String
         let start: Int
         let end: Int
         let confidence: Double
 
         func validate() throws {
-            guard !speaker.trimmingCharacters(in: .whitespaces).isEmpty else {
-                throw AssemblyAIError.invalidTranscript(reason: "Speaker name is empty")
+            guard speaker >= 0 else {
+                throw AssemblyAIError.invalidTranscript(reason: "Invalid speaker ID")
             }
             guard !text.trimmingCharacters(in: .whitespaces).isEmpty else {
                 throw AssemblyAIError.invalidTranscript(reason: "Utterance text is empty")
@@ -253,7 +294,7 @@ struct AssemblyAITranscript: Codable {
 
         var formatted = ""
         for utterance in utterances {
-            formatted += "Speaker \(utterance.speaker): \(utterance.text)\n\n"
+            formatted += "Speaker \(utterance.speaker + 1): \(utterance.text)\n\n"
         }
         return formatted
     }

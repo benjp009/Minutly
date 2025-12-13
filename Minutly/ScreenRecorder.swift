@@ -348,7 +348,7 @@ class ScreenRecorder: NSObject, ObservableObject {
     }
 
     // Test microphone before starting recording
-    private func testMicrophoneRecording() async -> Bool {
+    func testMicrophoneRecording() async -> Bool {
         let testURL = FileManager.default.temporaryDirectory.appendingPathComponent("mic_test.wav")
 
         let settings: [String: Any] = [

@@ -14,7 +14,9 @@ struct SettingsView: View {
     @AppStorage("transcriptionProvider") private var transcriptionProvider: String = "apple"
     @AppStorage("enableMeetingDetection") private var enableMeetingDetection = false
     @AppStorage("enableMenuBarMode") private var enableMenuBarMode = false
+    @AppStorage("onboardingCompleted") private var onboardingCompleted = false
     @State private var showRestartAlert = false
+    @State private var showOnboardingResetAlert = false
     @State private var selectedSection: SettingsSection = .general
     @State private var loadingKeys = true
 
@@ -38,6 +40,14 @@ struct SettingsView: View {
             Button("OK") {}
         } message: {
             Text("Please restart Minutly for the menu bar mode change to take effect.")
+        }
+        .alert("Restart Onboarding", isPresented: $showOnboardingResetAlert) {
+            Button("Cancel", role: .cancel) {}
+            Button("Restart", role: .destructive) {
+                resetOnboarding()
+            }
+        } message: {
+            Text("This will restart the onboarding process. The app will close and you'll see the onboarding screens when you reopen it.")
         }
         .onAppear {
             loadKeysFromKeychain()
@@ -69,6 +79,15 @@ struct SettingsView: View {
         } catch {
             print("❌ Error saving API keys to Keychain: \(error.localizedDescription)")
         }
+    }
+
+    private func resetOnboarding() {
+        // Reset onboarding state
+        onboardingCompleted = false
+        UserDefaults.standard.set(1, forKey: "currentOnboardingPage")
+
+        // Close the app so user can restart and see onboarding
+        NSApplication.shared.terminate(nil)
     }
 
     private var sidebar: some View {
@@ -183,6 +202,38 @@ struct SettingsView: View {
                             .foregroundStyle(.orange)
                     }
                 }
+            }
+
+            Divider()
+                .padding(.vertical, 8)
+
+            // Restart Onboarding Section
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Image(systemName: "arrow.clockwise.circle")
+                        .foregroundStyle(.blue)
+                    Text("Restart Onboarding")
+                        .font(.headline)
+                }
+
+                Text("Start the onboarding process again to reconfigure your API keys and permissions.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Button(action: {
+                    showOnboardingResetAlert = true
+                }) {
+                    HStack {
+                        Image(systemName: "arrow.clockwise")
+                        Text("Restart Onboarding")
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(Color.blue.opacity(0.1))
+                    .foregroundStyle(.blue)
+                    .cornerRadius(8)
+                }
+                .buttonStyle(.plain)
             }
         }
         .padding(.leading, 16)

@@ -20,9 +20,13 @@ class EncryptionService {
     /// Get or create the master encryption key stored in Keychain
     func getMasterKey() throws -> SymmetricKey {
         // Try to retrieve existing key from Keychain
-        if let keyData = try keychainService.retrieveAPIKey(for: keyIdentifier) {
-            if let data = keyData.data(using: .utf8), data.count == 32 {
-                return SymmetricKey(data: data)
+        if let keyBase64 = try keychainService.retrieveAPIKey(for: keyIdentifier) {
+            // The key is stored as base64, so we need to decode it
+            if let keyData = Data(base64Encoded: keyBase64), keyData.count == 32 {
+                print("🔑 Retrieved existing encryption key from Keychain")
+                return SymmetricKey(data: keyData)
+            } else {
+                print("⚠️ Found key in Keychain but it's invalid (wrong size or encoding), creating new key")
             }
         }
 
@@ -30,7 +34,7 @@ class EncryptionService {
         let newKey = SymmetricKey(size: .bits256)
         let keyData = newKey.withUnsafeBytes { Data($0) }
 
-        // Store in Keychain
+        // Store in Keychain as base64
         try keychainService.saveAPIKey(keyData.base64EncodedString(), for: keyIdentifier)
         print("✅ Created and stored new encryption master key")
 

@@ -348,7 +348,7 @@ class ScreenRecorder: NSObject, ObservableObject {
     }
 
     // Test microphone before starting recording
-    private func testMicrophoneRecording() async -> Bool {
+    func testMicrophoneRecording() async -> Bool {
         let testURL = FileManager.default.temporaryDirectory.appendingPathComponent("mic_test.wav")
 
         let settings: [String: Any] = [
@@ -489,17 +489,19 @@ class ScreenRecorder: NSObject, ObservableObject {
                     let recording = micRecorder?.record() ?? false
                     print("   ⏺️ Recording started: \(recording)")
 
-                    if recording {
-                        print("   ✅ Microphone recording active")
-                    } else {
+                    if !recording {
                         // CRITICAL: Abort entire recording if mic fails
                         errorMessage = "Failed to start microphone recording"
                         print("   ❌ Microphone recording failed - ABORTING")
 
-                        // Cleanup and abort
-                        assetWriter?.cancelWriting()
+                        // Cleanup and abort - ensure complete cleanup
+                        if let writer = assetWriter, writer.status != .cancelled && writer.status != .failed {
+                            writer.cancelWriting()
+                        }
                         assetWriter = nil
                         audioInput = nil
+                        stream = nil
+                        micRecorder = nil
                         isRecording = false
 
                         // Show error to user
@@ -513,6 +515,7 @@ class ScreenRecorder: NSObject, ObservableObject {
 
                         throw NSError(domain: "com.minutly", code: 1001, userInfo: [NSLocalizedDescriptionKey: "Microphone recording failed"])
                     }
+                    print("   ✅ Microphone recording active")
                 }
             } catch {
                 errorMessage = "Failed to start mic recorder: \(error.localizedDescription)"
@@ -779,8 +782,8 @@ class ScreenRecorder: NSObject, ObservableObject {
         let fileManager = FileManager.default
         let directory = oldURL.deletingLastPathComponent()
 
-        // Use the name exactly as typed
-        let newFileName = "\(newName).wav"
+        // Use the name exactly as typed - preserve the .enc extension
+        let newFileName = "\(newName).enc"
         let newURL = directory.appendingPathComponent(newFileName)
 
         print("📝 Renaming \(oldURL.lastPathComponent) to \(newFileName)")

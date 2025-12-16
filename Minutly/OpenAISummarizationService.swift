@@ -25,6 +25,46 @@ class OpenAISummarizationService {
         self.apiKey = key
     }
 
+    // MARK: - API Key Validation
+
+    static func validateAPIKey(_ apiKey: String) async throws -> Bool {
+        let endpoint = "https://api.openai.com/v1/models"
+
+        guard let url = URL(string: endpoint) else {
+            throw OpenAIError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+
+        // Use certificate pinning for production
+        let delegate = CertificatePinningDelegate(pinnedDomains: [:])
+        let session = URLSession.createPinnedSession(with: delegate)
+
+        do {
+            let (_, response) = try await session.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw OpenAIError.invalidResponse
+            }
+
+            // Status 200 = valid key, 401 = invalid key
+            if httpResponse.statusCode == 200 {
+                return true
+            } else if httpResponse.statusCode == 401 {
+                throw OpenAIError.invalidAPIKey
+            } else {
+                throw OpenAIError.apiError(statusCode: httpResponse.statusCode, message: "API validation failed")
+            }
+        } catch {
+            if error is OpenAIError {
+                throw error
+            }
+            throw OpenAIError.networkError(error.localizedDescription)
+        }
+    }
+
     // MARK: - Token Validation
 
     /// Estimate tokens in text (rough approximation: 1 token ≈ 4 characters)

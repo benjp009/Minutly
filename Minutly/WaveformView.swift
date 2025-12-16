@@ -138,9 +138,37 @@ private enum WaveformLoader {
         try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 do {
-                    let file = try AVAudioFile(forReading: url)
+                    // Check if file is encrypted (.enc extension)
+                    let fileURL: URL
+                    var tempFileToCleanup: URL?
+
+                    if url.pathExtension == "enc" {
+                        // Decrypt the file temporarily
+                        let encryptionService = EncryptionService.shared
+                        let decryptedData = try encryptionService.decryptFileTemporarily(at: url)
+
+                        // Write to temporary file
+                        let tempURL = FileManager.default.temporaryDirectory
+                            .appendingPathComponent(UUID().uuidString)
+                            .appendingPathExtension("wav")
+                        try decryptedData.write(to: tempURL)
+
+                        fileURL = tempURL
+                        tempFileToCleanup = tempURL
+                    } else {
+                        fileURL = url
+                    }
+
+                    // Load the audio file
+                    let file = try AVAudioFile(forReading: fileURL)
                     let format = file.processingFormat
                     let frameCount = UInt32(file.length)
+
+                    // Clean up temp file if needed
+                    if let tempFile = tempFileToCleanup {
+                        try? FileManager.default.removeItem(at: tempFile)
+                    }
+
                     guard frameCount > 0 else {
                         continuation.resume(returning: [])
                         return

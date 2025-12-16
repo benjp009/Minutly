@@ -1,6 +1,7 @@
 //
 //  ContentView.swift
 //  Minutly
+
 //
 //  Created by Benjamin Patin on 25/11/2025.
 //
@@ -451,12 +452,12 @@ private struct RecordingDetailView: View {
 
     @State private var isPlaying = false
     @State private var audioPlayer: AVAudioPlayer?
-    @State private var timer: Timer?
     @State private var playbackCancellable: AnyCancellable?
     @State private var currentTime: TimeInterval = 0
     @State private var playerDelegate: PlayerDelegate?
     @State private var isEditingName = false
     @State private var editedName = ""
+    @State private var decryptedAudioTempURL: URL?
 
     @State private var selectedTab: DetailTab = .transcript
     @State private var transcriptionText: String?
@@ -709,20 +710,47 @@ private struct RecordingDetailView: View {
 
     private func startPlayback() {
         do {
-            audioPlayer = try AVAudioPlayer(contentsOf: url)
+            print("🎵 Starting playback for: \(url.lastPathComponent)")
+
+            // Decrypt the encrypted audio file temporarily
+            let encryptionService = EncryptionService.shared
+            print("🔓 Decrypting audio file...")
+            let decryptedData = try encryptionService.decryptFileTemporarily(at: url)
+            print("✅ Decrypted \(decryptedData.count) bytes")
+
+            // Create a temporary file to store the decrypted audio
+            let tempURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString)
+                .appendingPathExtension("wav")
+
+            print("💾 Writing decrypted audio to: \(tempURL.path)")
+            try decryptedData.write(to: tempURL)
+            decryptedAudioTempURL = tempURL
+
+            print("🎧 Creating audio player...")
+            audioPlayer = try AVAudioPlayer(contentsOf: tempURL)
             playerDelegate = PlayerDelegate(onFinish: stopPlayback)
             audioPlayer?.delegate = playerDelegate
-            audioPlayer?.play()
-            isPlaying = true
 
-            // Use Combine timer with automatic cleanup instead of DispatchSourceTimer
-            playbackCancellable = Timer.publish(every: 0.05, on: .main, in: .common)
-                .autoconnect()
-                .sink { _ in
-                    currentTime = audioPlayer?.currentTime ?? 0
-                }
+            print("▶️ Starting playback...")
+            let success = audioPlayer?.play() ?? false
+            print("Playback started: \(success)")
+
+            if success {
+                isPlaying = true
+
+                // Use Combine timer with automatic cleanup instead of DispatchSourceTimer
+                playbackCancellable = Timer.publish(every: 0.05, on: .main, in: .common)
+                    .autoconnect()
+                    .sink { _ in
+                        currentTime = audioPlayer?.currentTime ?? 0
+                    }
+            } else {
+                print("❌ Failed to start playback")
+            }
         } catch {
-            print("Failed to play audio: \(error)")
+            print("❌ Failed to play audio: \(error.localizedDescription)")
+            print("   Error details: \(error)")
         }
     }
 
@@ -731,15 +759,17 @@ private struct RecordingDetailView: View {
         playbackCancellable?.cancel()
         playbackCancellable = nil
 
-        // Legacy timer cleanup (for safety)
-        timer?.invalidate()
-        timer = nil
-
         audioPlayer?.stop()
         audioPlayer = nil
         playerDelegate = nil
         isPlaying = false
         currentTime = 0
+
+        // Clean up temporary decrypted audio file
+        if let tempURL = decryptedAudioTempURL {
+            try? FileManager.default.removeItem(at: tempURL)
+            decryptedAudioTempURL = nil
+        }
     }
 
     private func finishEditing() {
@@ -753,17 +783,68 @@ private struct RecordingDetailView: View {
     }
 
     private func downloadRecording() {
+        // Ask user if they want to download encrypted or decrypted version
+        let alert = NSAlert()
+        alert.messageText = "Download Recording"
+        alert.informativeText = "Would you like to download the encrypted file (.enc) or a decrypted WAV file?"
+        alert.addButton(withTitle: "Decrypted WAV")
+        alert.addButton(withTitle: "Encrypted File")
+        alert.addButton(withTitle: "Cancel")
+
+        let response = alert.runModal()
+
+        if response == .alertFirstButtonReturn {
+            // Decrypted WAV
+            downloadDecryptedRecording()
+        } else if response == .alertSecondButtonReturn {
+            // Encrypted file
+            downloadEncryptedRecording()
+        }
+    }
+
+    private func downloadDecryptedRecording() {
+        do {
+            // Decrypt the file
+            let encryptionService = EncryptionService.shared
+            let decryptedData = try encryptionService.decryptFileTemporarily(at: url)
+
+            let savePanel = NSSavePanel()
+            savePanel.canCreateDirectories = true
+            savePanel.nameFieldStringValue = url.deletingPathExtension().lastPathComponent + ".wav"
+            savePanel.allowedContentTypes = [.wav]
+
+            savePanel.begin { response in
+                if response == .OK, let destinationURL = savePanel.url {
+                    do {
+                        try decryptedData.write(to: destinationURL)
+                        print("✅ Decrypted recording saved to: \(destinationURL.path)")
+                    } catch {
+                        print("❌ Failed to save decrypted file: \(error)")
+                    }
+                }
+            }
+        } catch {
+            print("❌ Failed to decrypt file: \(error)")
+            let errorAlert = NSAlert()
+            errorAlert.messageText = "Decryption Failed"
+            errorAlert.informativeText = "Could not decrypt the recording: \(error.localizedDescription)"
+            errorAlert.runModal()
+        }
+    }
+
+    private func downloadEncryptedRecording() {
         let savePanel = NSSavePanel()
         savePanel.canCreateDirectories = true
         savePanel.nameFieldStringValue = url.lastPathComponent
-        savePanel.allowedContentTypes = [.wav]
+        savePanel.allowedContentTypes = [.data]  // .enc files are encrypted data
 
         savePanel.begin { response in
             if response == .OK, let destinationURL = savePanel.url {
                 do {
                     try FileManager.default.copyItem(at: url, to: destinationURL)
+                    print("✅ Encrypted recording saved to: \(destinationURL.path)")
                 } catch {
-                    print("Failed to save file: \(error)")
+                    print("❌ Failed to save file: \(error)")
                 }
             }
         }

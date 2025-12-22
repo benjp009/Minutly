@@ -4,5 +4,7 @@
 <dict>
 	<key>NSScreenCaptureUsageDescription</key>
 	<string>Minutly needs access to record your screen.</string>
+	<key>LSUIElement</key>
+	<true/>
 </dict>
 </plist>

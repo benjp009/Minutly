@@ -44,10 +44,15 @@ struct SettingsView: View {
         .alert("Restart Onboarding", isPresented: $showOnboardingResetAlert) {
             Button("Cancel", role: .cancel) {}
             Button("Restart", role: .destructive) {
-                resetOnboarding()
+                // Close settings first
+                dismiss()
+                // Small delay to let UI update
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    resetOnboarding()
+                }
             }
         } message: {
-            Text("This will restart the onboarding process. The app will close and you'll see the onboarding screens when you reopen it.")
+            Text("This will restart the onboarding process and show you the first onboarding screen.")
         }
         .onAppear {
             loadKeysFromKeychain()
@@ -82,12 +87,12 @@ struct SettingsView: View {
     }
 
     private func resetOnboarding() {
-        // Reset onboarding state
+        // Reset onboarding state - this will immediately show the onboarding screen
         onboardingCompleted = false
         UserDefaults.standard.set(1, forKey: "currentOnboardingPage")
 
-        // Close the app so user can restart and see onboarding
-        NSApplication.shared.terminate(nil)
+        // The onboarding will now show automatically because onboardingCompleted is false
+        // No need to close the app - the UI will update immediately
     }
 
     private var sidebar: some View {

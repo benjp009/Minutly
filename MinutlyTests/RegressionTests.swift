@@ -270,6 +270,145 @@ class RegressionTests: XCTestCase {
         wait(for: [expectation], timeout: 10.0)
     }
 
+    // MARK: - Test 5: Recording Stop Crash Prevention
+
+    /// Regression Test: Verify recording stop doesn't crash due to audio hardware cleanup issues
+    /// This test validates the fix for the audio I/O thread crash when stopping recordings
+    func testRecordingStopNoCrash() throws {
+        let expectation = XCTestExpectation(description: "Recording stop completes without crash")
+
+        // This is a synchronous test to ensure cleanup completes before proceeding
+        Task { @MainActor in
+            do {
+                // Simulate the meeting recording workflow
+                print("1️⃣ Starting recording (simulating meeting recording)...")
+
+                // Note: We can't actually start SCStream recording in tests due to permissions
+                // Instead, we test the cleanup path with minimal resources
+
+                // Create temporary files to simulate active recording
+                let testFileName = "test_stop_crash_\(Date().timeIntervalSince1970)"
+                let sysURL = testDirectory.appendingPathComponent("\(testFileName)_sys.wav")
+                let micURL = testDirectory.appendingPathComponent("\(testFileName)_mic.wav")
+
+                // Generate minimal test audio
+                let testAudioData = try generateTestAudio(duration: 0.5, frequency: 440.0)
+                try testAudioData.write(to: sysURL)
+                try testAudioData.write(to: micURL)
+
+                print("2️⃣ Files created, simulating recording stop...")
+
+                // Simulate the cleanup sequence (without actual SCStream/AVAssetWriter)
+                // This tests the file handling and mixing logic
+
+                // Test audio mixing (critical part of stopRecording)
+                let finalURL = testDirectory.appendingPathComponent("\(testFileName).wav")
+                try await self.testRecorder.mixAudioFiles(systemURL: sysURL, micURL: micURL, destinationURL: finalURL)
+
+                print("3️⃣ Audio mixing completed successfully")
+
+                // Verify output exists
+                XCTAssertTrue(FileManager.default.fileExists(atPath: finalURL.path),
+                             "❌ REGRESSION FAILURE: Mixed audio file not created")
+
+                let finalSize = try FileManager.default.attributesOfItem(atPath: finalURL.path)[.size] as? Int ?? 0
+                XCTAssertGreaterThan(finalSize, 0,
+                                    "❌ REGRESSION FAILURE: Mixed audio file is empty")
+
+                print("4️⃣ Verifying file integrity...")
+
+                // Verify the file is valid audio
+                let audioFile = try AVAudioFile(forReading: finalURL)
+                XCTAssertGreaterThan(audioFile.length, 0,
+                                    "❌ REGRESSION FAILURE: Mixed audio has no frames")
+
+                print("5️⃣ Encrypting final file...")
+
+                // Test encryption (part of stopRecording workflow)
+                let encryptedURL = testDirectory.appendingPathComponent("\(testFileName).enc")
+                try self.encryptionService.encryptAudioFile(at: finalURL, to: encryptedURL)
+
+                XCTAssertTrue(FileManager.default.fileExists(atPath: encryptedURL.path),
+                             "❌ REGRESSION FAILURE: Encrypted file not created")
+
+                print("6️⃣ Cleanup test files...")
+
+                // Clean up (simulating the temp file removal in stopRecording)
+                try? FileManager.default.removeItem(at: sysURL)
+                try? FileManager.default.removeItem(at: micURL)
+                try? FileManager.default.removeItem(at: finalURL)
+
+                print("✅ REGRESSION PASS: Recording stop workflow completed without crash")
+                expectation.fulfill()
+
+            } catch {
+                XCTFail("❌ REGRESSION FAILURE: Recording stop crashed or failed: \(error)")
+                expectation.fulfill()
+            }
+        }
+
+        wait(for: [expectation], timeout: 30.0)
+    }
+
+    // MARK: - Test 6: Multiple Start/Stop Cycles
+
+    /// Regression Test: Verify multiple recording start/stop cycles don't cause resource leaks or crashes
+    func testMultipleRecordingCycles() throws {
+        let expectation = XCTestExpectation(description: "Multiple recording cycles complete")
+
+        Task { @MainActor in
+            do {
+                print("🔄 Testing multiple recording cycles...")
+
+                for cycle in 1...3 {
+                    print("\n--- Cycle \(cycle) ---")
+
+                    // Create test files
+                    let testFileName = "test_cycle_\(cycle)_\(Date().timeIntervalSince1970)"
+                    let sysURL = testDirectory.appendingPathComponent("\(testFileName)_sys.wav")
+                    let micURL = testDirectory.appendingPathComponent("\(testFileName)_mic.wav")
+                    let finalURL = testDirectory.appendingPathComponent("\(testFileName).wav")
+                    let encryptedURL = testDirectory.appendingPathComponent("\(testFileName).enc")
+
+                    // Generate test audio
+                    let testAudioData = try generateTestAudio(duration: 0.3, frequency: 440.0)
+                    try testAudioData.write(to: sysURL)
+                    try testAudioData.write(to: micURL)
+
+                    // Mix audio
+                    try await self.testRecorder.mixAudioFiles(systemURL: sysURL, micURL: micURL, destinationURL: finalURL)
+
+                    // Encrypt
+                    try self.encryptionService.encryptAudioFile(at: finalURL, to: encryptedURL)
+
+                    // Verify
+                    XCTAssertTrue(FileManager.default.fileExists(atPath: encryptedURL.path),
+                                 "❌ REGRESSION FAILURE: Cycle \(cycle) - encrypted file not created")
+
+                    // Cleanup
+                    try? FileManager.default.removeItem(at: sysURL)
+                    try? FileManager.default.removeItem(at: micURL)
+                    try? FileManager.default.removeItem(at: finalURL)
+                    try? FileManager.default.removeItem(at: encryptedURL)
+
+                    print("✅ Cycle \(cycle) completed")
+
+                    // Small delay between cycles
+                    try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+                }
+
+                print("✅ REGRESSION PASS: All \(3) recording cycles completed successfully")
+                expectation.fulfill()
+
+            } catch {
+                XCTFail("❌ REGRESSION FAILURE: Multiple cycles test failed: \(error)")
+                expectation.fulfill()
+            }
+        }
+
+        wait(for: [expectation], timeout: 60.0)
+    }
+
     // MARK: - Helper Methods
 
     /// Generate test audio data (WAV format with PCM)

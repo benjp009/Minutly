@@ -120,25 +120,40 @@ class ScreenRecorder: NSObject, ObservableObject {
         preBufferManager = PreBufferManager(maxDuration: preBufferDuration)
 
         do {
-            // Get available content (displays)
-            let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+            // Get available content (displays) - this will prompt for Screen Recording permission if needed
+            print("🖥️ Requesting screen capture access for pre-buffering...")
+            let content: SCShareableContent
+            do {
+                content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+            } catch {
+                errorMessage = "Screen Recording permission required. Please enable it in System Settings > Privacy & Security > Screen Recording."
+                print("❌ Screen capture permission denied for pre-buffering: \(error)")
+                isPreBuffering = false
+                return
+            }
 
             guard let display = content.displays.first else {
                 errorMessage = "No display found"
+                print("❌ No displays available for pre-buffering")
+                isPreBuffering = false
                 return
             }
+
+            print("✅ Screen capture access granted for pre-buffering")
 
             // Create content filter for the main display
             let filter = SCContentFilter(display: display, excludingWindows: [])
 
-            // Configure stream - minimal video settings as we only want audio
+            // Configure stream - audio only, explicitly disable video
             let config = SCStreamConfiguration()
-            config.width = 100
-            config.height = 100
-            config.minimumFrameInterval = CMTime(value: 1, timescale: 1)
+            config.width = 1
+            config.height = 1
+            config.minimumFrameInterval = CMTime(value: 100, timescale: 1) // Very low frame rate (0.01 fps)
             config.capturesAudio = true
             config.sampleRate = 48000
             config.channelCount = 2
+            config.showsCursor = false
+            config.backgroundColor = .clear
 
             // Create and start stream
             stream = SCStream(filter: filter, configuration: config, delegate: nil)
@@ -418,25 +433,54 @@ class ScreenRecorder: NSObject, ObservableObject {
             }
             print("✅ Microphone test passed")
 
-            // Get available content (displays)
-            let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+            // Get available content (displays) - this will prompt for Screen Recording permission if needed
+            print("🖥️ Requesting screen capture access...")
+            let content: SCShareableContent
+            do {
+                content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+            } catch {
+                errorMessage = "Screen Recording permission required. Please enable it in System Settings > Privacy & Security > Screen Recording."
+                print("❌ Screen capture permission denied: \(error)")
+
+                await MainActor.run {
+                    let alert = NSAlert()
+                    alert.messageText = "Screen Recording Permission Required"
+                    alert.informativeText = "Minutly needs Screen Recording permission to capture system audio. Please enable it in System Settings > Privacy & Security > Screen Recording, then restart Minutly."
+                    alert.alertStyle = .critical
+                    alert.addButton(withTitle: "Open Settings")
+                    alert.addButton(withTitle: "Cancel")
+
+                    let response = alert.runModal()
+                    if response == .alertFirstButtonReturn {
+                        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }
+                }
+                return
+            }
 
             guard let display = content.displays.first else {
                 errorMessage = "No display found"
+                print("❌ No displays available")
                 return
             }
+
+            print("✅ Screen capture access granted, display: \(display.displayID)")
 
             // Create content filter for the main display
             let filter = SCContentFilter(display: display, excludingWindows: [])
 
-            // Configure stream - minimal video settings as we only want audio
+            // Configure stream - audio only, explicitly disable video
             let config = SCStreamConfiguration()
-            config.width = 100
-            config.height = 100
-            config.minimumFrameInterval = CMTime(value: 1, timescale: 1) // Low FPS
+            config.width = 1
+            config.height = 1
+            config.minimumFrameInterval = CMTime(value: 100, timescale: 1) // Very low frame rate (0.01 fps)
             config.capturesAudio = true
             config.sampleRate = 48000
             config.channelCount = 2
+            config.showsCursor = false
+            config.backgroundColor = .clear
 
             // Set up temporary file output for system audio
             let tempDir = FileManager.default.temporaryDirectory
@@ -592,7 +636,7 @@ class ScreenRecorder: NSObject, ObservableObject {
         }
 
         print("✅ Proceeding with stop recording")
-        
+
         // Ensure we always set isRecording to false when this function completes
         defer {
             print("🔄 Defer block executing - setting isRecording to false")
@@ -609,138 +653,140 @@ class ScreenRecorder: NSObject, ObservableObject {
                 print("✅ isRecording set to false on main thread")
             }
         }
-        
-        do {
-            print("🎥 Stopping stream capture...")
-            try await stream?.stopCapture()
-            stream = nil
-            print("✅ Stream stopped")
-            
-            // Finish writing system audio
-            print("🎵 Marking audio input as finished...")
-            audioInput?.markAsFinished()
 
-            // Finish asset writer with timeout and status check
-            print("💾 Finishing asset writer...")
-            if let writer = assetWriter, writer.status == .writing {
-                do {
-                    // Create a task for finishWriting with timeout protection
-                    let finishTask = Task {
-                        await writer.finishWriting()
-                    }
+        // CRITICAL FIX: Cleanup order is important to prevent audio I/O crashes
+        // 1. Stop microphone FIRST (independent resource, no dependencies)
+        print("🎤 Stopping mic recorder...")
+        micRecorder?.stop()
+        // Small delay to let microphone I/O thread settle
+        try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        print("✅ Mic recorder stopped")
 
-                    // Wait with 10-second timeout
-                    let timeout: UInt64 = 10_000_000_000 // 10 seconds in nanoseconds
-                    try await withAssetWriterTimeout(nanoseconds: timeout) {
-                        await finishTask.value
-                    }
+        // 2. Finish writing system audio SECOND (complete AVAssetWriter before releasing hardware)
+        print("🎵 Marking audio input as finished...")
+        audioInput?.markAsFinished()
 
-                    print("✅ Asset writer finished successfully, status: \(writer.status.rawValue)")
-                } catch {
-                    print("❌ Asset writer error: \(error)")
-                    if writer.status == .failed {
-                        print("⚠️ Writer already in failed state, skipping cleanup")
-                    }
+        // Finish asset writer with timeout and status check
+        print("💾 Finishing asset writer...")
+        if let writer = assetWriter, writer.status == .writing {
+            do {
+                // Create a task for finishWriting with timeout protection
+                let finishTask = Task {
+                    await writer.finishWriting()
                 }
-            } else {
-                print("⚠️ Asset writer not in writing state, skipping finishWriting")
-                if let writer = assetWriter {
-                    print("   Current status: \(writer.status.rawValue)")
+
+                // Wait with 10-second timeout
+                let timeout: UInt64 = 10_000_000_000 // 10 seconds in nanoseconds
+                try await withAssetWriterTimeout(nanoseconds: timeout) {
+                    await finishTask.value
+                }
+
+                print("✅ Asset writer finished successfully, status: \(writer.status.rawValue)")
+            } catch {
+                print("❌ Asset writer error: \(error)")
+                if writer.status == .failed {
+                    print("⚠️ Writer already in failed state, skipping cleanup")
                 }
             }
-            
-            // Stop microphone recorder
-            print("🎤 Stopping mic recorder...")
-            micRecorder?.stop()
-            print("✅ Mic recorder stopped")
-            
-            // Capture the temporary URLs so we can safely clear the stored properties before awaiting work
-            let systemURL = tempURL
-            let microphoneURL = micTempURL
-            tempURL = nil
-            micTempURL = nil
-
-            // Mix system and mic audio into a single file
-            if let sysURL = systemURL, let micURL = microphoneURL {
-                print("🔀 Starting audio mixing...")
-                print("   System URL: \(sysURL.path)")
-                print("   Mic URL: \(micURL.path)")
-                
-                let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-                let finalFileName = "\(generateFilename(meetingTitle: currentMeetingTitle)).wav"
-                let destinationURL = documentsURL.appendingPathComponent(finalFileName)
-
-                // Clear meeting title after using it
-                currentMeetingTitle = nil
-                
-                print("   Destination: \(destinationURL.path)")
-                
-                // Remove existing destination if any
-                if FileManager.default.fileExists(atPath: destinationURL.path) {
-                    try? FileManager.default.removeItem(at: destinationURL)
-                    print("   🗑️ Removed existing file")
-                }
-                
-                do {
-                    print("   🎶 Calling mixAudioFiles...")
-                    try await mixAudioFiles(systemURL: sysURL, micURL: micURL, destinationURL: destinationURL)
-                    print("   ✅ Audio mixing complete")
-
-                    // Encrypt the audio file
-                    print("   🔐 Encrypting audio file...")
-                    let encryptedFileName = "\(destinationURL.deletingPathExtension().lastPathComponent).enc"
-                    let encryptedURL = destinationURL.deletingLastPathComponent().appendingPathComponent(encryptedFileName)
-
-                    try self.encryptionService.encryptAudioFile(at: destinationURL, to: encryptedURL)
-                    print("   ✅ Audio file encrypted")
-
-                    // Remove plaintext file after encryption
-                    try? FileManager.default.removeItem(at: destinationURL)
-                    print("   ✅ Plaintext file removed")
-
-                    // Log encryption event
-                    await self.auditLogger.log(
-                        event: .recordingEncrypted(
-                            title: self.currentMeetingTitle ?? "Untitled",
-                            duration: 0  // Duration logged separately in recordingStopped
-                        ),
-                        source: "system"
-                    )
-
-                    DispatchQueue.main.async {
-                        self.lastRecordingPath = encryptedURL.path
-                        // Update recordings immediately so UI shows the new file without waiting
-                        self.fetchRecordings()
-                    }
-                } catch {
-                    print("   ❌ Audio processing failed: \(error.localizedDescription)")
-                    DispatchQueue.main.async {
-                        self.errorMessage = "Failed to process audio: \(error.localizedDescription)"
-                    }
-                }
-            } else {
-                print("⚠️ Missing URLs - sysURL: \(systemURL?.path ?? "nil"), micURL: \(microphoneURL?.path ?? "nil")")
-            }
-            
-            // Clean up temporary files
-            print("🧹 Cleaning up temporary files...")
-            if let sysURL = systemURL {
-                try? FileManager.default.removeItem(at: sysURL)
-                print("   ✅ Removed system temp file")
-            }
-            if let micURL = microphoneURL {
-                try? FileManager.default.removeItem(at: micURL)
-                print("   ✅ Removed mic temp file")
-            }
-            
-            print("✅ Stop recording completed successfully")
-            
-        } catch {
-            print("❌ Error in stopRecording: \(error.localizedDescription)")
-            DispatchQueue.main.async {
-                self.errorMessage = "Failed to save recording: \(error.localizedDescription)"
+        } else {
+            print("⚠️ Asset writer not in writing state, skipping finishWriting")
+            if let writer = assetWriter {
+                print("   Current status: \(writer.status.rawValue)")
             }
         }
+
+        // 3. Stop SCStream LAST (releases audio hardware after all writing is complete)
+        print("🎥 Stopping stream capture...")
+        do {
+            try await stream?.stopCapture()
+            print("✅ Stream stopped")
+        } catch {
+            print("⚠️ Stream stop warning: \(error)")
+        }
+        // Small delay to let audio hardware settle
+        try? await Task.sleep(nanoseconds: 200_000_000) // 200ms
+        stream = nil
+
+        // Capture the temporary URLs so we can safely clear the stored properties before awaiting work
+        let systemURL = tempURL
+        let microphoneURL = micTempURL
+        tempURL = nil
+        micTempURL = nil
+
+        // Mix system and mic audio into a single file
+        if let sysURL = systemURL, let micURL = microphoneURL {
+            print("🔀 Starting audio mixing...")
+            print("   System URL: \(sysURL.path)")
+            print("   Mic URL: \(micURL.path)")
+
+            let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+            let finalFileName = "\(generateFilename(meetingTitle: currentMeetingTitle)).wav"
+            let destinationURL = documentsURL.appendingPathComponent(finalFileName)
+
+            // Clear meeting title after using it
+            currentMeetingTitle = nil
+
+            print("   Destination: \(destinationURL.path)")
+
+            // Remove existing destination if any
+            if FileManager.default.fileExists(atPath: destinationURL.path) {
+                try? FileManager.default.removeItem(at: destinationURL)
+                print("   🗑️ Removed existing file")
+            }
+
+            do {
+                print("   🎶 Calling mixAudioFiles...")
+                try await mixAudioFiles(systemURL: sysURL, micURL: micURL, destinationURL: destinationURL)
+                print("   ✅ Audio mixing complete")
+
+                // Encrypt the audio file
+                print("   🔐 Encrypting audio file...")
+                let encryptedFileName = "\(destinationURL.deletingPathExtension().lastPathComponent).enc"
+                let encryptedURL = destinationURL.deletingLastPathComponent().appendingPathComponent(encryptedFileName)
+
+                try self.encryptionService.encryptAudioFile(at: destinationURL, to: encryptedURL)
+                print("   ✅ Audio file encrypted")
+
+                // Remove plaintext file after encryption
+                try? FileManager.default.removeItem(at: destinationURL)
+                print("   ✅ Plaintext file removed")
+
+                // Log encryption event
+                await self.auditLogger.log(
+                    event: .recordingEncrypted(
+                        title: self.currentMeetingTitle ?? "Untitled",
+                        duration: 0  // Duration logged separately in recordingStopped
+                    ),
+                    source: "system"
+                )
+
+                DispatchQueue.main.async {
+                    self.lastRecordingPath = encryptedURL.path
+                    // Update recordings immediately so UI shows the new file without waiting
+                    self.fetchRecordings()
+                }
+            } catch {
+                print("   ❌ Audio processing failed: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    self.errorMessage = "Failed to process audio: \(error.localizedDescription)"
+                }
+            }
+        } else {
+            print("⚠️ Missing URLs - sysURL: \(systemURL?.path ?? "nil"), micURL: \(microphoneURL?.path ?? "nil")")
+        }
+
+        // Clean up temporary files
+        print("🧹 Cleaning up temporary files...")
+        if let sysURL = systemURL {
+            try? FileManager.default.removeItem(at: sysURL)
+            print("   ✅ Removed system temp file")
+        }
+        if let micURL = microphoneURL {
+            try? FileManager.default.removeItem(at: micURL)
+            print("   ✅ Removed mic temp file")
+        }
+
+        print("✅ Stop recording completed successfully")
     }
     
     func fetchRecordings() {
@@ -848,7 +894,7 @@ class ScreenRecorder: NSObject, ObservableObject {
     }
     
     // MARK: - Audio Mixing
-    private func mixAudioFiles(systemURL: URL, micURL: URL, destinationURL: URL) async throws {
+    internal func mixAudioFiles(systemURL: URL, micURL: URL, destinationURL: URL) async throws {
         print("   📂 Loading system audio from: \(systemURL.path)")
         let systemFile = try AVAudioFile(forReading: systemURL)
         let systemFormat = systemFile.processingFormat

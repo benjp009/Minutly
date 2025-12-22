@@ -39,7 +39,7 @@ class OnboardingState: ObservableObject {
     }
 
     func nextPage() {
-        if currentPage < 7 {
+        if currentPage < 3 {
             currentPage += 1
             resetPageState()
         }

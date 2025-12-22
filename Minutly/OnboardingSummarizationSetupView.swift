@@ -178,4 +178,3 @@ struct OnboardingSummarizationSetupView: View {
     OnboardingSummarizationSetupView()
         .environmentObject(OnboardingState())
 }
-

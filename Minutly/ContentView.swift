@@ -24,6 +24,7 @@ struct ContentView: View {
     @State private var isRecordingsExpanded = true
     @State private var isUpcomingMeetingsExpanded = true
     @AppStorage("enableMeetingDetection") private var enableMeetingDetection = false
+    @State private var durationCache: [URL: String] = [:]
 
     var body: some View {
         HStack(spacing: 0) {
@@ -243,15 +244,23 @@ struct ContentView: View {
                                             selectedRecordingURL = url
                                             showWelcome = false
                                         } label: {
-                                            Text(cleanName(from: url))
-                                                .font(.system(size: 12))
-                                                .foregroundStyle(.black)
-                                                .lineLimit(1)
-                                                .frame(maxWidth: .infinity, alignment: .leading)
-                                                .frame(height: 30)
-                                                .padding(.horizontal, 10)
-                                                .background(selectedRecordingURL == url ? Color.accentColor.opacity(0.1) : Color.clear)
-                                                .cornerRadius(6)
+                                            HStack {
+                                                Text(cleanName(from: url))
+                                                    .font(.system(size: 12))
+                                                    .foregroundStyle(.black)
+                                                    .lineLimit(1)
+
+                                                Spacer()
+
+                                                Text(formatDuration(for: url))
+                                                    .font(.system(size: 12))
+                                                    .foregroundStyle(Color(hex: "A9A9A9"))
+                                            }
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .frame(height: 30)
+                                            .padding(.horizontal, 10)
+                                            .background(selectedRecordingURL == url ? Color.accentColor.opacity(0.1) : Color.clear)
+                                            .cornerRadius(6)
                                         }
                                         .buttonStyle(.plain)
                                     }
@@ -376,6 +385,52 @@ struct ContentView: View {
 
     private func cleanName(from url: URL) -> String {
         url.deletingPathExtension().lastPathComponent
+    }
+
+    private func formatDuration(for url: URL) -> String {
+        // Check cache first
+        if let cached = durationCache[url] {
+            return cached
+        }
+
+        // Calculate duration in background
+        Task {
+            let duration = await calculateDuration(for: url)
+            await MainActor.run {
+                durationCache[url] = duration
+            }
+        }
+
+        return "00:00:00"
+    }
+
+    private func calculateDuration(for url: URL) async -> String {
+        do {
+            // Decrypt the file to get its duration
+            let encryptionService = EncryptionService.shared
+            let decryptedData = try encryptionService.decryptFileTemporarily(at: url)
+
+            // Write to temporary file to read duration
+            let tempURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString)
+                .appendingPathExtension("wav")
+
+            try decryptedData.write(to: tempURL)
+            defer {
+                try? FileManager.default.removeItem(at: tempURL)
+            }
+
+            let audioPlayer = try AVAudioPlayer(contentsOf: tempURL)
+            let duration = audioPlayer.duration
+
+            let hours = Int(duration) / 3600
+            let minutes = (Int(duration) % 3600) / 60
+            let seconds = Int(duration) % 60
+
+            return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+        } catch {
+            return "00:00:00"
+        }
     }
 }
 

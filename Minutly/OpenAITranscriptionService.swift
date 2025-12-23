@@ -30,10 +30,11 @@ class OpenAITranscriptionService {
         languageCode: String? = nil,
         onProgress: ((Double, String) -> Void)? = nil
     ) async throws -> String {
-        onProgress?(0.1, "Preparing audio...")
+        onProgress?(0.1, "📦 Preparing audio file...")
 
         let audioData = try Data(contentsOf: audioURL)
-        onProgress?(0.3, "Uploading to OpenAI...")
+        let fileSizeKB = audioData.count / 1024
+        onProgress?(0.3, "📤 Uploading \(fileSizeKB) KB to OpenAI Whisper...")
 
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
@@ -48,6 +49,7 @@ class OpenAITranscriptionService {
             languageCode: languageCode
         )
 
+        onProgress?(0.5, "🔄 Processing with Whisper model...")
         let (data, response) = try await pinnedSession.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse,
@@ -56,12 +58,13 @@ class OpenAITranscriptionService {
             throw OpenAIError.apiError(statusCode: (response as? HTTPURLResponse)?.statusCode ?? -1, message: message)
         }
 
+        onProgress?(0.9, "📝 Receiving transcription...")
         struct TranscriptionResponse: Codable {
             let text: String
         }
 
         let result = try JSONDecoder().decode(TranscriptionResponse.self, from: data)
-        onProgress?(1.0, "Transcription complete!")
+        onProgress?(1.0, "✅ Transcription complete!")
         return result.text
     }
 

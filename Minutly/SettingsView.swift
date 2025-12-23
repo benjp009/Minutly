@@ -7,11 +7,42 @@
 
 import SwiftUI
 
+// Language model
+struct Language: Identifiable, Equatable {
+    let id = UUID()
+    let code: String
+    let name: String
+
+    static let allLanguages: [Language] = [
+        Language(code: "en", name: "English"),
+        Language(code: "fr", name: "French"),
+        Language(code: "es", name: "Spanish"),
+        Language(code: "de", name: "German"),
+        Language(code: "it", name: "Italian"),
+        Language(code: "pt", name: "Portuguese"),
+        Language(code: "zh", name: "Chinese (Mandarin)"),
+        Language(code: "ja", name: "Japanese"),
+        Language(code: "ko", name: "Korean"),
+        Language(code: "ar", name: "Arabic"),
+        Language(code: "ru", name: "Russian"),
+        Language(code: "hi", name: "Hindi"),
+        Language(code: "nl", name: "Dutch"),
+        Language(code: "sv", name: "Swedish"),
+        Language(code: "no", name: "Norwegian"),
+        Language(code: "da", name: "Danish"),
+        Language(code: "fi", name: "Finnish"),
+        Language(code: "pl", name: "Polish"),
+        Language(code: "tr", name: "Turkish"),
+        Language(code: "he", name: "Hebrew")
+    ]
+}
+
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var assemblyAIKey: String = ""
     @State private var openAIKey: String = ""
     @AppStorage("transcriptionProvider") private var transcriptionProvider: String = "apple"
+    @AppStorage("transcriptionLanguages") private var transcriptionLanguagesString: String = "en"
     @AppStorage("enableMeetingDetection") private var enableMeetingDetection = false
     @AppStorage("enableMenuBarMode") private var enableMenuBarMode = false
     @AppStorage("onboardingCompleted") private var onboardingCompleted = false
@@ -19,6 +50,8 @@ struct SettingsView: View {
     @State private var showOnboardingResetAlert = false
     @State private var selectedSection: SettingsSection = .general
     @State private var loadingKeys = true
+    @State private var languageSearchText = ""
+    @State private var selectedLanguages: [Language] = []
 
     private enum SettingsSection: String, CaseIterable, Identifiable {
         case general = "General"
@@ -56,6 +89,7 @@ struct SettingsView: View {
         }
         .onAppear {
             loadKeysFromKeychain()
+            loadSelectedLanguages()
         }
     }
 
@@ -84,6 +118,37 @@ struct SettingsView: View {
         } catch {
             print("❌ Error saving API keys to Keychain: \(error.localizedDescription)")
         }
+    }
+
+    private func loadSelectedLanguages() {
+        let codes = transcriptionLanguagesString.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }
+        selectedLanguages = codes.compactMap { code in
+            Language.allLanguages.first(where: { $0.code == code })
+        }
+        // If empty, default to English
+        if selectedLanguages.isEmpty {
+            selectedLanguages = [Language(code: "en", name: "English")]
+            saveSelectedLanguages()
+        }
+    }
+
+    private func saveSelectedLanguages() {
+        transcriptionLanguagesString = selectedLanguages.map { $0.code }.joined(separator: ",")
+    }
+
+    private func addLanguage(_ language: Language) {
+        guard selectedLanguages.count < 10 else { return }
+        guard !selectedLanguages.contains(where: { $0.code == language.code }) else { return }
+        selectedLanguages.append(language)
+        saveSelectedLanguages()
+        languageSearchText = "" // Clear search after adding
+    }
+
+    private func removeLanguage(_ language: Language) {
+        // Don't allow removing if it's the last language
+        guard selectedLanguages.count > 1 else { return }
+        selectedLanguages.removeAll(where: { $0.code == language.code })
+        saveSelectedLanguages()
     }
 
     private func resetOnboarding() {
@@ -298,6 +363,19 @@ struct SettingsView: View {
             }
             .pickerStyle(.radioGroup)
 
+            Divider()
+                .padding(.vertical, 8)
+
+            languageSelectionSection
+
+            Divider()
+                .padding(.vertical, 8)
+
+            comparisonSection
+
+            Divider()
+                .padding(.vertical, 8)
+
             switch transcriptionProvider {
             case "assemblyai":
                 infoBlock(
@@ -343,6 +421,116 @@ struct SettingsView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    private var languageSelectionSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Languages")
+                    .font(.headline)
+                Spacer()
+                Text("\(selectedLanguages.count)/10")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Text("Select up to 10 languages in order of preference. The first language will be tried first.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            // Search bar
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                TextField("Search languages...", text: $languageSearchText)
+                    .textFieldStyle(.plain)
+                if !languageSearchText.isEmpty {
+                    Button(action: { languageSearchText = "" }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(8)
+            .background(Color.gray.opacity(0.1))
+            .cornerRadius(8)
+
+            // Selected languages tags
+            if !selectedLanguages.isEmpty {
+                FlowLayout(spacing: 8) {
+                    ForEach(Array(selectedLanguages.enumerated()), id: \.element.id) { index, language in
+                        HStack(spacing: 6) {
+                            Text("\(index + 1).")
+                                .font(.caption2)
+                                .fontWeight(.bold)
+                                .foregroundStyle(.secondary)
+                            Text(language.name)
+                                .font(.caption)
+                                .fontWeight(.medium)
+                            Button(action: { removeLanguage(language) }) {
+                                Image(systemName: "xmark")
+                                    .font(.caption2)
+                                    .foregroundStyle(.white)
+                            }
+                            .buttonStyle(.plain)
+                            .opacity(selectedLanguages.count > 1 ? 1 : 0.3)
+                            .disabled(selectedLanguages.count <= 1)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color.accentColor)
+                        .foregroundStyle(.white)
+                        .cornerRadius(16)
+                    }
+                }
+            }
+
+            // Available languages (filtered by search)
+            if !languageSearchText.isEmpty || selectedLanguages.count < 10 {
+                let availableLanguages = Language.allLanguages.filter { language in
+                    !selectedLanguages.contains(where: { $0.code == language.code }) &&
+                    (languageSearchText.isEmpty || language.name.lowercased().contains(languageSearchText.lowercased()))
+                }
+
+                if !availableLanguages.isEmpty {
+                    ScrollView {
+                        VStack(spacing: 4) {
+                            ForEach(availableLanguages) { language in
+                                Button(action: { addLanguage(language) }) {
+                                    HStack {
+                                        Text(language.name)
+                                            .font(.caption)
+                                        Spacer()
+                                        Image(systemName: "plus.circle")
+                                            .font(.caption)
+                                    }
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                                .background(Color.gray.opacity(0.05))
+                                .cornerRadius(6)
+                                .disabled(selectedLanguages.count >= 10)
+                                .opacity(selectedLanguages.count >= 10 ? 0.5 : 1)
+                            }
+                        }
+                    }
+                    .frame(maxHeight: 150)
+                }
+            }
+
+            if selectedLanguages.count >= 10 {
+                HStack {
+                    Image(systemName: "info.circle.fill")
+                        .foregroundStyle(.orange)
+                    Text("Maximum 10 languages selected")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+            }
+        }
+    }
+
     private func infoBlock(icon: String, color: Color, title: String, description: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
@@ -369,8 +557,6 @@ struct SettingsView: View {
             assemblySection
             Divider()
             openAISection
-            Divider()
-            comparisonSection
         }
         .padding(.leading, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -465,11 +651,12 @@ struct SettingsView: View {
                 .fontWeight(.bold)
 
             VStack(alignment: .leading, spacing: 12) {
-                FeatureRow(feature: "Cost", apple: "Free", assemblyAI: "$0.25-0.37/hour")
-                FeatureRow(feature: "Speaker Identification", apple: "No", assemblyAI: "Yes")
-                FeatureRow(feature: "French Support", apple: "Yes", assemblyAI: "Yes (99+ languages)")
-                FeatureRow(feature: "Offline", apple: "Yes", assemblyAI: "No (requires internet)")
-                FeatureRow(feature: "Accuracy", apple: "Good", assemblyAI: "Excellent")
+                FeatureRow(feature: "Cost", apple: "Free", assemblyAI: "$0.25-0.37/hour", openAI: "$0.006/min (~$0.36/hour)")
+                FeatureRow(feature: "Speaker Identification", apple: "No", assemblyAI: "Yes", openAI: "No")
+                FeatureRow(feature: "Language Support", apple: "Limited", assemblyAI: "99+ languages", openAI: "99+ languages")
+                FeatureRow(feature: "Offline", apple: "Yes", assemblyAI: "No (requires internet)", openAI: "No (requires internet)")
+                FeatureRow(feature: "Accuracy", apple: "Good", assemblyAI: "Excellent", openAI: "Excellent")
+                FeatureRow(feature: "Processing Speed", apple: "Real-time", assemblyAI: "~25% of audio length", openAI: "Fast")
             }
             .padding(16)
             .background(Color.gray.opacity(0.05))
@@ -482,13 +669,14 @@ struct FeatureRow: View {
     let feature: String
     let apple: String
     let assemblyAI: String
+    let openAI: String
 
     var body: some View {
-        HStack {
+        HStack(spacing: 8) {
             Text(feature)
                 .font(.caption)
                 .fontWeight(.medium)
-                .frame(width: 150, alignment: .leading)
+                .frame(width: 120, alignment: .leading)
 
             Spacer()
 
@@ -499,7 +687,7 @@ struct FeatureRow: View {
                 Text(apple)
                     .font(.caption)
             }
-            .frame(width: 150, alignment: .leading)
+            .frame(width: 100, alignment: .leading)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("AssemblyAI")
@@ -508,7 +696,16 @@ struct FeatureRow: View {
                 Text(assemblyAI)
                     .font(.caption)
             }
-            .frame(width: 150, alignment: .leading)
+            .frame(width: 120, alignment: .leading)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("OpenAI")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Text(openAI)
+                    .font(.caption)
+            }
+            .frame(width: 120, alignment: .leading)
         }
     }
 }
@@ -558,6 +755,58 @@ struct SettingsMenuItem: View {
             return Color.gray.opacity(0.15)
         } else {
             return Color.clear
+        }
+    }
+}
+
+// Flow Layout for wrapping tags
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let result = FlowResult(
+            in: proposal.replacingUnspecifiedDimensions().width,
+            subviews: subviews,
+            spacing: spacing
+        )
+        return result.size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let result = FlowResult(
+            in: bounds.width,
+            subviews: subviews,
+            spacing: spacing
+        )
+        for (index, subview) in subviews.enumerated() {
+            subview.place(at: CGPoint(x: bounds.minX + result.frames[index].minX, y: bounds.minY + result.frames[index].minY), proposal: .unspecified)
+        }
+    }
+
+    struct FlowResult {
+        var size: CGSize = .zero
+        var frames: [CGRect] = []
+
+        init(in maxWidth: CGFloat, subviews: Subviews, spacing: CGFloat) {
+            var currentX: CGFloat = 0
+            var currentY: CGFloat = 0
+            var lineHeight: CGFloat = 0
+
+            for subview in subviews {
+                let size = subview.sizeThatFits(.unspecified)
+
+                if currentX + size.width > maxWidth && currentX > 0 {
+                    currentX = 0
+                    currentY += lineHeight + spacing
+                    lineHeight = 0
+                }
+
+                frames.append(CGRect(x: currentX, y: currentY, width: size.width, height: size.height))
+                lineHeight = max(lineHeight, size.height)
+                currentX += size.width + spacing
+            }
+
+            self.size = CGSize(width: maxWidth, height: currentY + lineHeight)
         }
     }
 }

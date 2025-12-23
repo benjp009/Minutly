@@ -68,21 +68,21 @@ class AssemblyAIService {
 
     // MARK: - Transcription
 
-    func transcribe(audioURL: URL, languageCode: String = "fr", onProgress: @escaping (Double, String) -> Void) async throws -> AssemblyAITranscript {
+    func transcribe(audioURL: URL, languageCode: String? = nil, onProgress: @escaping (Double, String) -> Void) async throws -> AssemblyAITranscript {
         print("🎙️ Starting AssemblyAI transcription for: \(audioURL.lastPathComponent)")
 
         // Step 1: Upload audio file
-        onProgress(0.1, "Uploading audio file...")
+        onProgress(0.1, "📤 Uploading audio file to AssemblyAI...")
         let uploadURL = try await uploadAudio(audioURL: audioURL)
         print("✅ Audio uploaded to: \(uploadURL)")
 
         // Step 2: Submit transcription request
-        onProgress(0.2, "Submitting transcription request...")
+        onProgress(0.2, "📝 Creating transcription job...")
         let transcriptID = try await submitTranscription(audioURL: uploadURL, languageCode: languageCode)
         print("✅ Transcript ID: \(transcriptID)")
 
         // Step 3: Poll for completion
-        onProgress(0.3, "Processing transcription...")
+        onProgress(0.3, "⏳ Waiting for transcription to complete...")
         let transcript = try await pollForCompletion(transcriptID: transcriptID, onProgress: onProgress)
         print("✅ Transcription complete!")
 
@@ -132,13 +132,20 @@ class AssemblyAIService {
             let upload_url: String
         }
 
-        let uploadResponse = try JSONDecoder().decode(UploadResponse.self, from: data)
-        return uploadResponse.upload_url
+        do {
+            let uploadResponse = try JSONDecoder().decode(UploadResponse.self, from: data)
+            return uploadResponse.upload_url
+        } catch {
+            let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
+            print("❌ Failed to decode upload response. Raw response: \(responseString)")
+            print("❌ Decode error: \(error.localizedDescription)")
+            throw AssemblyAIError.uploadFailed(statusCode: 200, message: "Invalid JSON response: \(responseString)")
+        }
     }
 
     // MARK: - Submit Transcription
 
-    private func submitTranscription(audioURL: String, languageCode: String) async throws -> String {
+    private func submitTranscription(audioURL: String, languageCode: String?) async throws -> String {
         let transcriptEndpoint = "\(baseURL)/transcript"
         guard let url = URL(string: transcriptEndpoint) else {
             throw AssemblyAIError.invalidURL
@@ -146,7 +153,8 @@ class AssemblyAIService {
 
         struct TranscriptRequest: Codable {
             let audio_url: String
-            let language_code: String
+            let language_code: String?
+            let language_detection: Bool
             let speaker_labels: Bool
             let punctuate: Bool
             let format_text: Bool
@@ -155,6 +163,7 @@ class AssemblyAIService {
         let requestBody = TranscriptRequest(
             audio_url: audioURL,
             language_code: languageCode,
+            language_detection: languageCode == nil,  // Auto-detect if no language specified
             speaker_labels: true,  // Enable speaker diarization
             punctuate: true,
             format_text: true
@@ -204,18 +213,32 @@ class AssemblyAIService {
         while attempts < maxAttempts {
             let (data, response) = try await pinnedSession.data(for: request)
 
-            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+            guard let httpResponse = response as? HTTPURLResponse else {
                 throw AssemblyAIError.invalidResponse
             }
 
-            let transcript = try JSONDecoder().decode(AssemblyAITranscript.self, from: data)
+            guard httpResponse.statusCode == 200 else {
+                let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
+                print("❌ Polling failed with status \(httpResponse.statusCode): \(errorMessage)")
+                throw AssemblyAIError.transcriptionFailed(statusCode: httpResponse.statusCode, message: errorMessage)
+            }
+
+            let transcript: AssemblyAITranscript
+            do {
+                transcript = try JSONDecoder().decode(AssemblyAITranscript.self, from: data)
+            } catch {
+                let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
+                print("❌ Failed to decode polling response. Raw response: \(responseString)")
+                print("❌ Decode error: \(error.localizedDescription)")
+                throw AssemblyAIError.invalidTranscript(reason: "Invalid JSON response: \(error.localizedDescription)")
+            }
 
             // Validate transcript structure
             try transcript.validate()
 
             switch transcript.status {
             case "completed":
-                onProgress(1.0, "Transcription complete!")
+                onProgress(1.0, "✅ Transcription complete!")
                 return transcript
 
             case "error":
@@ -224,7 +247,13 @@ class AssemblyAIService {
             case "processing", "queued":
                 // Update progress (30% to 90% during processing)
                 let processingProgress = 0.3 + (Double(attempts) / Double(maxAttempts)) * 0.6
-                onProgress(processingProgress, "Processing... (\(attempts)s)")
+                let statusText: String
+                if transcript.status == "queued" {
+                    statusText = "⏳ Queued - Waiting for processing slot..."
+                } else {
+                    statusText = "🔄 Processing audio - \(attempts)s elapsed"
+                }
+                onProgress(processingProgress, statusText)
                 print("📊 Status: \(transcript.status) - Progress: \(Int(processingProgress * 100))%")
 
                 // Wait 1 second before next poll
@@ -253,14 +282,14 @@ struct AssemblyAITranscript: Codable {
     let words: [Word]?
 
     struct Utterance: Codable {
-        let speaker: Int
+        let speaker: String  // AssemblyAI returns "A", "B", "C", etc. as strings
         let text: String
         let start: Int
         let end: Int
         let confidence: Double
 
         func validate() throws {
-            guard speaker >= 0 else {
+            guard !speaker.isEmpty else {
                 throw AssemblyAIError.invalidTranscript(reason: "Invalid speaker ID")
             }
             guard !text.trimmingCharacters(in: .whitespaces).isEmpty else {
@@ -283,7 +312,7 @@ struct AssemblyAITranscript: Codable {
         let start: Int
         let end: Int
         let confidence: Double
-        let speaker: String?
+        let speaker: String?  // AssemblyAI returns "A", "B", etc. as strings
     }
 
     // Format transcript with speaker labels
@@ -294,7 +323,7 @@ struct AssemblyAITranscript: Codable {
 
         var formatted = ""
         for utterance in utterances {
-            formatted += "Speaker \(utterance.speaker + 1): \(utterance.text)\n\n"
+            formatted += "Speaker \(utterance.speaker): \(utterance.text)\n\n"
         }
         return formatted
     }

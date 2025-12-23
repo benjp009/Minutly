@@ -23,18 +23,8 @@ class TranscriptionService {
     private let auditLogger = AuditLogger.shared
 
     init() {
-        // Initialize with French locale
-        // Try French (France) first, fallback to user's locale
-        if let frenchRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "fr-FR")) {
-            recognizer = frenchRecognizer
-            print("✅ Using French (France) speech recognizer")
-        } else if let frenchCanadaRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "fr-CA")) {
-            recognizer = frenchCanadaRecognizer
-            print("✅ Using French (Canada) speech recognizer")
-        } else {
-            recognizer = SFSpeechRecognizer()
-            print("⚠️ Using default locale speech recognizer")
-        }
+        // Initialize recognizer based on language preference
+        recognizer = Self.createRecognizer()
 
         // Initialize AssemblyAI if API key is available
         do {
@@ -113,6 +103,67 @@ class TranscriptionService {
                 self.progress = progressValue
                 self.statusMessage = status
             }
+        }
+    }
+
+    // Create recognizer based on language preference (uses first language in list)
+    private static func createRecognizer() -> SFSpeechRecognizer? {
+        let languagesString = UserDefaults.standard.string(forKey: "transcriptionLanguages") ?? "en"
+        let languageCodes = languagesString.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }
+        let languageCode = languageCodes.first ?? "en"
+
+        let localeIdentifier: String
+        switch languageCode {
+        case "en":
+            localeIdentifier = "en-US"
+        case "fr":
+            localeIdentifier = "fr-FR"
+        case "es":
+            localeIdentifier = "es-ES"
+        case "de":
+            localeIdentifier = "de-DE"
+        case "it":
+            localeIdentifier = "it-IT"
+        case "pt":
+            localeIdentifier = "pt-BR"
+        case "zh":
+            localeIdentifier = "zh-CN"
+        case "ja":
+            localeIdentifier = "ja-JP"
+        case "ko":
+            localeIdentifier = "ko-KR"
+        case "ar":
+            localeIdentifier = "ar-SA"
+        case "ru":
+            localeIdentifier = "ru-RU"
+        case "hi":
+            localeIdentifier = "hi-IN"
+        case "nl":
+            localeIdentifier = "nl-NL"
+        case "sv":
+            localeIdentifier = "sv-SE"
+        case "no":
+            localeIdentifier = "no-NO"
+        case "da":
+            localeIdentifier = "da-DK"
+        case "fi":
+            localeIdentifier = "fi-FI"
+        case "pl":
+            localeIdentifier = "pl-PL"
+        case "tr":
+            localeIdentifier = "tr-TR"
+        case "he":
+            localeIdentifier = "he-IL"
+        default:
+            localeIdentifier = Locale.current.identifier
+        }
+
+        if let specificRecognizer = SFSpeechRecognizer(locale: Locale(identifier: localeIdentifier)) {
+            print("✅ Using \(localeIdentifier) speech recognizer (from language list: \(languagesString))")
+            return specificRecognizer
+        } else {
+            print("⚠️ \(localeIdentifier) not available, using default locale")
+            return SFSpeechRecognizer()
         }
     }
 
@@ -209,7 +260,18 @@ class TranscriptionService {
         }
 
         do {
-            let transcript = try await service.transcribe(audioURL: audioURL, languageCode: "fr") { [weak self] progressValue, status in
+            // Get language preference from settings (use first language in the list)
+            let languagesString = UserDefaults.standard.string(forKey: "transcriptionLanguages") ?? "en"
+            let languageCodes = languagesString.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }
+            let languageCode = languageCodes.first
+
+            if let lang = languageCode {
+                print("🌍 Using language: \(lang) (from list: \(languagesString))")
+            } else {
+                print("🌍 Using automatic language detection")
+            }
+
+            let transcript = try await service.transcribe(audioURL: audioURL, languageCode: languageCode) { [weak self] progressValue, status in
                 DispatchQueue.main.async {
                     self?.progress = progressValue
                     self?.statusMessage = status
@@ -256,7 +318,18 @@ class TranscriptionService {
         defer { isTranscribing = false }
 
         do {
-            let transcript = try await service.transcribe(audioURL: audioURL, languageCode: "fr") { [weak self] progressValue, status in
+            // Get language preference from settings (use first language in the list)
+            let languagesString = UserDefaults.standard.string(forKey: "transcriptionLanguages") ?? "en"
+            let languageCodes = languagesString.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }
+            let languageCode = languageCodes.first
+
+            if let lang = languageCode {
+                print("🌍 Using language: \(lang) (from list: \(languagesString))")
+            } else {
+                print("🌍 Using automatic language detection")
+            }
+
+            let transcript = try await service.transcribe(audioURL: audioURL, languageCode: languageCode) { [weak self] progressValue, status in
                 DispatchQueue.main.async {
                     self?.progress = progressValue
                     self?.statusMessage = status
@@ -277,12 +350,18 @@ class TranscriptionService {
 
         // Check authorization
         print("🔐 Requesting speech recognition authorization...")
+        await MainActor.run {
+            self.statusMessage = "🔐 Checking permissions..."
+        }
         let authorized = await requestAuthorization()
         guard authorized else {
             print("❌ Speech recognition not authorized")
             throw TranscriptionError.notAuthorized
         }
         print("✅ Authorization granted")
+        await MainActor.run {
+            self.statusMessage = "✅ Permission granted"
+        }
 
         // Check if recognizer is available
         guard let recognizer = recognizer, recognizer.isAvailable else {
@@ -308,6 +387,10 @@ class TranscriptionService {
             }
             print("✅ Audio file exists")
 
+            await MainActor.run {
+                self.statusMessage = "📂 Loading audio file..."
+            }
+
             // Create recognition request
             let request = SFSpeechURLRecognitionRequest(url: audioURL)
             request.shouldReportPartialResults = true
@@ -330,6 +413,10 @@ class TranscriptionService {
             let duration = try await audioAsset.load(.duration)
             let durationSeconds = CMTimeGetSeconds(duration)
             print("🎵 Audio duration: \(Int(durationSeconds)) seconds")
+
+            await MainActor.run {
+                self.statusMessage = "🎙️ Starting Apple Speech recognition..."
+            }
 
             // Perform recognition with timeout
             let transcription = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, Error>) in
@@ -382,12 +469,14 @@ class TranscriptionService {
                         DispatchQueue.main.async {
                             if result.isFinal {
                                 self.progress = 1.0
+                                self.statusMessage = "✅ Transcription complete!"
                                 print("✅ Transcription complete: \(wordCount) words")
                             } else {
                                 // Better progress calculation based on audio duration
                                 // Estimate ~2 words per second for speech
                                 let estimatedTotalWords = max(durationSeconds * 2, Double(wordCount))
                                 self.progress = min(0.95, Double(wordCount) / estimatedTotalWords)
+                                self.statusMessage = "🔄 Transcribing... \(wordCount) words recognized"
                                 print("📊 Progress: \(Int(self.progress * 100))% - \(wordCount) words so far (estimated total: \(Int(estimatedTotalWords)))")
                             }
                         }

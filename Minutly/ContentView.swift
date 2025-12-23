@@ -661,10 +661,33 @@ private struct RecordingDetailView: View {
                 }
             } else if isTranscribing {
                 VStack(spacing: 12) {
+                    HStack {
+                        ProgressView()
+                            .scaleEffect(0.9)
+                        Text("Transcribing... \(Int(transcriptionProgress * 100))%")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                    }
+
                     ProgressView(value: transcriptionProgress)
-                    Text("Transcribing... Please wait.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .progressViewStyle(.linear)
+                        .tint(.blue)
+
+                    if !transcriptionService.statusMessage.isEmpty {
+                        HStack(spacing: 6) {
+                            Image(systemName: "info.circle.fill")
+                                .font(.caption)
+                                .foregroundStyle(.blue)
+                            Text(transcriptionService.statusMessage)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(8)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding()
@@ -717,10 +740,33 @@ private struct RecordingDetailView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             } else if isSummarizing {
                 VStack(spacing: 12) {
-                    ProgressView()
-                    Text("Generating summary...")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    HStack {
+                        ProgressView()
+                            .scaleEffect(0.9)
+                        Text("Generating summary... \(Int(transcriptionService.progress * 100))%")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                    }
+
+                    ProgressView(value: transcriptionService.progress)
+                        .progressViewStyle(.linear)
+                        .tint(.orange)
+
+                    if !transcriptionService.statusMessage.isEmpty {
+                        HStack(spacing: 6) {
+                            Image(systemName: "sparkles")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                            Text(transcriptionService.statusMessage)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.orange.opacity(0.1))
+                        .cornerRadius(8)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding()

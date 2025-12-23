@@ -96,7 +96,8 @@ class OpenAISummarizationService {
         // Validate transcription length
         try validateTranscriptionLength(transcription)
 
-        onProgress(0.1, "Preparing request...")
+        let estimatedTokens = estimateTokens(transcription)
+        onProgress(0.1, "📊 Analyzing \(estimatedTokens) tokens...")
 
         guard let url = URL(string: baseURL) else {
             throw OpenAIError.invalidURL
@@ -156,11 +157,12 @@ class OpenAISummarizationService {
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
         request.timeoutInterval = 60
 
-        onProgress(0.3, "Sending to OpenAI...")
+        onProgress(0.3, "📤 Sending to OpenAI GPT-3.5...")
         print("🌐 Sending request to OpenAI...")
 
         let (data, response): (Data, URLResponse)
         do {
+            onProgress(0.5, "⏳ Waiting for AI analysis...")
             (data, response) = try await pinnedSession.data(for: request)
         } catch {
             print("❌ Network error: \(error.localizedDescription)")
@@ -171,7 +173,7 @@ class OpenAISummarizationService {
             throw OpenAIError.invalidResponse
         }
 
-        onProgress(0.7, "Processing response...")
+        onProgress(0.7, "📝 Processing AI response...")
 
         guard httpResponse.statusCode == 200 else {
             let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
@@ -197,6 +199,7 @@ class OpenAISummarizationService {
         }
 
         print("✅ Received response from OpenAI")
+        onProgress(0.8, "🔍 Extracting tasks and insights...")
 
         // Parse the JSON content
         guard let contentData = content.data(using: .utf8) else {
@@ -210,9 +213,10 @@ class OpenAISummarizationService {
         // Validate summary structure
         try summary.validate()
 
-        onProgress(1.0, "Complete!")
-
+        onProgress(0.95, "✅ Validation complete...")
         print("✅ Summary parsed successfully: \(summary.tasks.count) tasks found")
+
+        onProgress(1.0, "✅ Summary generated!")
         return summary
     }
 }

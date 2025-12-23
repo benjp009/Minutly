@@ -98,13 +98,11 @@ struct MinutlyApp: App {
         // Connect recorder to menu bar controller
         appState.menuBarController.setRecorder(appState.recorder)
 
-        // Set up menu bar if enabled
-        if enableMenuBarMode {
-            appState.menuBarController.setupMenuBar()
+        // Always set up menu bar (app is menu bar only)
+        appState.menuBarController.setupMenuBar()
 
-            // Hide dock icon when in menu bar mode
-            NSApp.setActivationPolicy(.accessory)
-        }
+        // Ensure dock icon is hidden (LSUIElement in Info.plist handles this at launch)
+        NSApp.setActivationPolicy(.accessory)
     }
 }
 

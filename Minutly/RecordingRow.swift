@@ -170,24 +170,38 @@ struct RecordingRow: View {
                         .background(Color.white.opacity(0.5))
                         .cornerRadius(6)
                     } else if isTranscribing {
-                        VStack(spacing: 8) {
+                        VStack(spacing: 10) {
                             HStack {
                                 ProgressView()
+                                    .scaleEffect(0.8)
                                 Text("Transcribing... \(Int(transcriptionProgress * 100))%")
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            if !transcriptionService.statusMessage.isEmpty {
-                                Text(transcriptionService.statusMessage)
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(.primary)
                             }
 
                             ProgressView(value: transcriptionProgress)
                                 .progressViewStyle(.linear)
+                                .tint(.blue)
+
+                            if !transcriptionService.statusMessage.isEmpty {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "info.circle.fill")
+                                        .font(.caption2)
+                                        .foregroundStyle(.blue)
+                                    Text(transcriptionService.statusMessage)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(2)
+                                        .multilineTextAlignment(.leading)
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 6)
+                                .background(Color.blue.opacity(0.1))
+                                .cornerRadius(6)
+                            }
                         }
-                        .padding(8)
+                        .padding(10)
                     } else if let error = transcriptionError {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
@@ -247,24 +261,38 @@ struct RecordingRow: View {
                         SummaryView(summary: summary, onExport: exportSummary)
                             .frame(maxHeight: 400)
                     } else if isSummarizing {
-                        VStack(spacing: 8) {
+                        VStack(spacing: 10) {
                             HStack {
                                 ProgressView()
-                                Text("Generating summary...")
+                                    .scaleEffect(0.8)
+                                Text("Generating summary... \(Int(transcriptionService.progress * 100))%")
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            if !transcriptionService.statusMessage.isEmpty {
-                                Text(transcriptionService.statusMessage)
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(.primary)
                             }
 
                             ProgressView(value: transcriptionService.progress)
                                 .progressViewStyle(.linear)
+                                .tint(.orange)
+
+                            if !transcriptionService.statusMessage.isEmpty {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "sparkles")
+                                        .font(.caption2)
+                                        .foregroundStyle(.orange)
+                                    Text(transcriptionService.statusMessage)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(2)
+                                        .multilineTextAlignment(.leading)
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 6)
+                                .background(Color.orange.opacity(0.1))
+                                .cornerRadius(6)
+                            }
                         }
-                        .padding(8)
+                        .padding(10)
                     } else if let error = summaryError {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {

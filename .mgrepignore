@@ -1,0 +1,30 @@
+# Xcode build artifacts and project files
+*.xcodeproj/
+*.xcworkspace/
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# Git directory
+.git/
+
+# macOS system files
+.DS_Store
+
+# Swift Package Manager
+.swiftpm/
+.build/
+
+# Dependencies
+Packages/
+*.xcframework/
+
+# Temporary files
+*.swp
+*.swo
+*~
+
+# Test artifacts
+*.profdata
+*.profraw

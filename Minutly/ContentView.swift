@@ -16,6 +16,7 @@ struct ContentView: View {
     @EnvironmentObject var recorder: ScreenRecorder
     @StateObject private var calendarMonitor = CalendarMonitorService()
     @State private var showSettings = false
+    @State private var settingsInitialTab: SettingsView.SettingsSection = .general
     @State private var showMeetingAlert = false
     @State private var detectedMeeting: String = ""
     @State private var selectedRecordingURL: URL?
@@ -64,6 +65,11 @@ struct ContentView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openSettings)) { _ in
+            settingsInitialTab = .general
+            showSettings = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openSettingsAPI)) { _ in
+            settingsInitialTab = .api
             showSettings = true
         }
         .onChange(of: recorder.recordings) { _, newList in
@@ -74,7 +80,7 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $showSettings) {
-            SettingsView()
+            SettingsView(initialSection: settingsInitialTab)
         }
         .alert("Meeting Starting", isPresented: $showMeetingAlert) {
             Button("Start Recording") {
@@ -702,17 +708,34 @@ private struct RecordingDetailView: View {
                             .font(.footnote)
                             .foregroundStyle(.red)
                     }
-                    Button {
-                        Task { await generateTranscription() }
-                    } label: {
-                        Label("Transcribe Recording", systemImage: "text.quote")
-                            .font(.headline)
-                            .padding(.horizontal, 24)
-                            .padding(.vertical, 12)
-                            .background(Color.accentColor.opacity(0.2))
-                            .cornerRadius(10)
+                    HStack(spacing: 12) {
+                        Button {
+                            Task { await generateTranscription() }
+                        } label: {
+                            Label("Transcribe Recording", systemImage: "text.quote")
+                                .font(.headline)
+                                .padding(.horizontal, 24)
+                                .padding(.vertical, 12)
+                                .background(Color.accentColor.opacity(0.2))
+                                .cornerRadius(10)
+                        }
+                        .buttonStyle(.plain)
+
+                        // Show Settings button if error is API key related
+                        if let error = transcriptionError, error.contains("API key") {
+                            Button(action: {
+                                NotificationCenter.default.post(name: .openSettingsAPI, object: nil)
+                            }) {
+                                Label("Open Settings", systemImage: "gear")
+                                    .font(.headline)
+                                    .padding(.horizontal, 24)
+                                    .padding(.vertical, 12)
+                                    .background(Color.gray.opacity(0.2))
+                                    .cornerRadius(10)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
-                    .buttonStyle(.plain)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()

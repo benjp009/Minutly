@@ -48,12 +48,16 @@ struct SettingsView: View {
     @AppStorage("onboardingCompleted") private var onboardingCompleted = false
     @State private var showRestartAlert = false
     @State private var showOnboardingResetAlert = false
-    @State private var selectedSection: SettingsSection = .general
+    @State private var selectedSection: SettingsSection
     @State private var loadingKeys = true
     @State private var languageSearchText = ""
     @State private var selectedLanguages: [Language] = []
 
-    private enum SettingsSection: String, CaseIterable, Identifiable {
+    init(initialSection: SettingsSection = .general) {
+        _selectedSection = State(initialValue: initialSection)
+    }
+
+    enum SettingsSection: String, CaseIterable, Identifiable {
         case general = "General"
         case meetingDetection = "Meeting Detection"
         case transcription = "Transcription"
@@ -111,9 +115,15 @@ struct SettingsView: View {
         do {
             if !assemblyAIKey.isEmpty {
                 try KeychainService.shared.saveAPIKey(assemblyAIKey, for: "assemblyai")
+            } else {
+                // Delete key from Keychain if field is empty
+                try KeychainService.shared.deleteAPIKey(for: "assemblyai")
             }
             if !openAIKey.isEmpty {
                 try KeychainService.shared.saveAPIKey(openAIKey, for: "openai")
+            } else {
+                // Delete key from Keychain if field is empty
+                try KeychainService.shared.deleteAPIKey(for: "openai")
             }
         } catch {
             print("❌ Error saving API keys to Keychain: \(error.localizedDescription)")
@@ -582,7 +592,7 @@ struct SettingsView: View {
                         description: "To use AssemblyAI, sign up on assemblyai.com, get $50 in credits (~200 hours), and paste your key above."
                     )
                     Button(action: {
-                        NSWorkspace.shared.open(URL(string: "https://www.assemblyai.com/")!)
+                        NSWorkspace.shared.open(URL(string: "https://www.assemblyai.com/dashboard/api-keys")!)
                     }) {
                         Label("Get API Key", systemImage: "arrow.up.right.square")
                     }

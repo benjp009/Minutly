@@ -108,5 +108,6 @@ struct MinutlyApp: App {
 
 extension Notification.Name {
     static let openSettings = Notification.Name("openSettings")
+    static let openSettingsAPI = Notification.Name("openSettingsAPI")
     static let openRecording = Notification.Name("openRecording")
 }

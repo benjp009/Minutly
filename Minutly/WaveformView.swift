@@ -6,60 +6,90 @@ struct WaveformView: View {
     let url: URL
     let currentTime: TimeInterval
     let duration: TimeInterval
-    
+
     @State private var samples: [Float] = []
     @State private var isLoading = false
     @State private var loadTask: Task<Void, Never>?
-    private let targetSampleCount = 100
-    
+    private let targetSampleCount = 500
+
     var body: some View {
-        GeometryReader { geometry in
-            if samples.isEmpty {
-                PlaceholderWaveform()
-                    .onAppear {
-                        loadSamplesIfNeeded()
+        VStack(spacing: 4) {
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    if samples.isEmpty {
+                        PlaceholderWaveform()
+                            .onAppear {
+                                loadSamplesIfNeeded()
+                            }
+                            .onDisappear {
+                                cancelLoading()
+                            }
+                    } else {
+                        // Single waveform with uniform color
+                        waveformPath(in: geometry.size)
+                            .fill(Color.accentColor.opacity(0.6))
+
+                        // Progress indicator line
+                        Rectangle()
+                            .fill(Color.accentColor)
+                            .frame(width: 2)
+                            .offset(x: max(0, geometry.size.width * CGFloat(duration > 0 ? currentTime / duration : 0)))
+                            .animation(.easeInOut(duration: 0.05), value: currentTime)
                     }
-                    .onDisappear {
-                        cancelLoading()
-                    }
-            } else {
-                waveformPath(in: geometry.size)
-                    .fill(Color.accentColor.opacity(0.8))
-                    .animation(.easeInOut(duration: 0.05), value: currentTime)
+                }
             }
+
+            // Time labels
+            HStack {
+                Text(formatTime(currentTime))
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(.secondary)
+
+                Spacer()
+
+                Text(formatTime(duration))
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal, 4)
         }
     }
-    
+
     private func waveformPath(in size: CGSize) -> Path {
         var path = Path()
         let width = size.width
         let height = size.height
         let middleY = height / 2
+
+        guard !samples.isEmpty else { return path }
+
+        // Display ALL samples across full width
         let barCount = samples.count
         let stepX = width / CGFloat(barCount)
-        let barWidth = max(1, stepX - 1)
+        let barWidth = max(1, stepX * 0.8)
+
+        // Amplification factor to make waveform more visible
+        let maxSample = samples.max() ?? 1.0
+        let amplificationFactor = maxSample > 0 ? min(0.95 / CGFloat(maxSample), 8.0) : 1.0
 
         for (index, sample) in samples.enumerated() {
-            let x = CGFloat(index) * stepX
-            let progress = duration > 0 ? currentTime / duration : 0
-            let currentBarIndex = Int(progress * Double(barCount))
-            let baseHeight = max(2, CGFloat(sample) * height)
-            let barHeight: CGFloat
+            let amplifiedSample = CGFloat(sample) * amplificationFactor
+            let barHeight = max(2, amplifiedSample * height)
 
-            if index < currentBarIndex {
-                barHeight = baseHeight * 0.6
-            } else if index == currentBarIndex {
-                barHeight = baseHeight * 1.3
-            } else {
-                barHeight = baseHeight
-            }
-
+            let x = CGFloat(index) * stepX + (stepX - barWidth) / 2
             let y = middleY - barHeight / 2
             let rect = CGRect(x: x, y: y, width: barWidth, height: barHeight)
-            path.addRoundedRect(in: rect, cornerSize: CGSize(width: barWidth/2, height: barWidth/2))
+            let cornerSize = CGSize(width: barWidth / 2, height: barWidth / 2)
+            path.addRoundedRect(in: rect, cornerSize: cornerSize)
         }
 
         return path
+    }
+
+    private func formatTime(_ time: TimeInterval) -> String {
+        let minutes = Int(time) / 60
+        let seconds = Int(time) % 60
+        return String(format: "%d:%02d", minutes, seconds)
     }
 
     private func loadSamplesIfNeeded() {

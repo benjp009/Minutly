@@ -32,7 +32,8 @@ struct RecordingRow: View {
     @State private var summary: ConversationSummary?
     @State private var isSummarizing = false
     @State private var summaryError: String?
-    
+    @State private var showDeleteConfirmation = false
+
     var body: some View {
         VStack(spacing: 8) {
             HStack {
@@ -110,7 +111,7 @@ struct RecordingRow: View {
                 .buttonStyle(.plain)
 
                 // Delete Button
-                Button(action: onDelete) {
+                Button(action: { showDeleteConfirmation = true }) {
                     Image(systemName: "trash")
                         .foregroundStyle(.red)
                 }
@@ -218,14 +219,29 @@ struct RecordingRow: View {
                                 .foregroundStyle(.secondary)
                                 .fixedSize(horizontal: false, vertical: true)
 
-                            Button("Retry") {
-                                Task {
-                                    await generateTranscription()
+                            HStack(spacing: 8) {
+                                Button("Retry") {
+                                    Task {
+                                        await generateTranscription()
+                                    }
+                                }
+                                .font(.caption)
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.small)
+
+                                // Show Settings button if error is API key related
+                                if error.contains("API key") {
+                                    Button(action: {
+                                        // Open Settings window to API tab
+                                        NotificationCenter.default.post(name: .openSettingsAPI, object: nil)
+                                    }) {
+                                        Label("Open Settings", systemImage: "gear")
+                                    }
+                                    .font(.caption)
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
                                 }
                             }
-                            .font(.caption)
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.small)
                         }
                         .padding(8)
                         .background(Color.red.opacity(0.1))
@@ -341,6 +357,14 @@ struct RecordingRow: View {
             // Load existing transcription if available
             transcriptionText = transcriptionService.loadTranscription(for: url)
         }
+        .alert("Delete Recording?", isPresented: $showDeleteConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                onDelete()
+            }
+        } message: {
+            Text("This will permanently delete '\(cleanName(from: url))' and its transcription. This action cannot be undone.")
+        }
     }
     
     private func finishEditing() {
@@ -361,6 +385,9 @@ struct RecordingRow: View {
     private func startPlayback() {
         do {
             audioPlayer = try AVAudioPlayer(contentsOf: url)
+
+            // Prepare the player to get duration and other metadata
+            audioPlayer?.prepareToPlay()
 
             // Keep a strong reference to the delegate
             playerDelegate = PlayerDelegate(onFinish: {
@@ -392,7 +419,7 @@ struct RecordingRow: View {
         isPlaying = false
         currentTime = 0
     }
-    
+
     private func cleanName(from url: URL) -> String {
         return url.deletingPathExtension().lastPathComponent
     }

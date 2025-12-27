@@ -23,7 +23,6 @@ struct ContentView: View {
     @State private var showWelcome = true
     @State private var isSidebarCollapsed = false
     @State private var isRecordingsExpanded = true
-    @State private var isUpcomingMeetingsExpanded = true
     @AppStorage("enableMeetingDetection") private var enableMeetingDetection = false
     @State private var durationCache: [URL: String] = [:]
 
@@ -272,41 +271,6 @@ struct ContentView: View {
                                     }
                                 }
                                 .padding(.top, 4)
-                            }
-                        }
-
-                        // Upcoming Meetings Section Header (right after recordings)
-                        Button(action: {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                isUpcomingMeetingsExpanded.toggle()
-                            }
-                        }) {
-                            HStack {
-                                Text("Upcoming Meetings")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(Color(hex: "A9A9A9"))
-
-                                Spacer()
-
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(Color(hex: "A9A9A9"))
-                                    .rotationEffect(.degrees(isUpcomingMeetingsExpanded ? 90 : 0))
-                            }
-                            .padding(.horizontal, 10)
-                            .padding(.top, 12)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-
-                        // Upcoming Meetings Content
-                        if isUpcomingMeetingsExpanded {
-                            if recorder.isPreBuffering {
-                                Text("Pre-buffering meeting...")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(.black)
-                                    .frame(height: 30)
-                                    .padding(.horizontal, 10)
                             }
                         }
                     }

@@ -663,6 +663,36 @@ struct SettingsView: View {
                 .fontWeight(.bold)
 
             VStack(alignment: .leading, spacing: 12) {
+                // Header row
+                HStack(spacing: 8) {
+                    Text("Feature")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 120, alignment: .leading)
+
+                    Spacer()
+
+                    Text("GPT-3.5")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 110, alignment: .leading)
+
+                    Text("GPT-4")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 110, alignment: .leading)
+
+                    Text("Apple Intelligence")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 110, alignment: .leading)
+                }
+
+                // Data rows
                 SummaryModelFeatureRow(
                     feature: "Cost per Summary",
                     gpt35: "$0.001-0.002",
@@ -930,6 +960,36 @@ struct SettingsView: View {
                 .fontWeight(.bold)
 
             VStack(alignment: .leading, spacing: 12) {
+                // Header row
+                HStack(spacing: 8) {
+                    Text("Feature")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 120, alignment: .leading)
+
+                    Spacer()
+
+                    Text("Apple")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 100, alignment: .leading)
+
+                    Text("AssemblyAI")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 120, alignment: .leading)
+
+                    Text("OpenAI")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 120, alignment: .leading)
+                }
+
+                // Data rows
                 FeatureRow(feature: "Cost", apple: "Free", assemblyAI: "$0.25-0.37/hour", openAI: "$0.006/min (~$0.36/hour)")
                 FeatureRow(feature: "Speaker Identification", apple: "No", assemblyAI: "Yes", openAI: "No")
                 FeatureRow(feature: "Language Support", apple: "Limited", assemblyAI: "99+ languages", openAI: "99+ languages")
@@ -959,32 +1019,17 @@ struct FeatureRow: View {
 
             Spacer()
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Apple")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                Text(apple)
-                    .font(.caption)
-            }
-            .frame(width: 100, alignment: .leading)
+            Text(apple)
+                .font(.caption)
+                .frame(width: 100, alignment: .leading)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text("AssemblyAI")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                Text(assemblyAI)
-                    .font(.caption)
-            }
-            .frame(width: 120, alignment: .leading)
+            Text(assemblyAI)
+                .font(.caption)
+                .frame(width: 120, alignment: .leading)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text("OpenAI")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                Text(openAI)
-                    .font(.caption)
-            }
-            .frame(width: 120, alignment: .leading)
+            Text(openAI)
+                .font(.caption)
+                .frame(width: 120, alignment: .leading)
         }
     }
 }
@@ -1004,34 +1049,19 @@ struct SummaryModelFeatureRow: View {
 
             Spacer()
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text("GPT-3.5")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                Text(gpt35)
-                    .font(.caption)
-            }
-            .frame(width: 110, alignment: .leading)
+            Text(gpt35)
+                .font(.caption)
+                .frame(width: 110, alignment: .leading)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text("GPT-4")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                Text(gpt4)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(width: 110, alignment: .leading)
+            Text(gpt4)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 110, alignment: .leading)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Apple Intelligence")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                Text(appleIntel)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(width: 110, alignment: .leading)
+            Text(appleIntel)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 110, alignment: .leading)
         }
     }
 }

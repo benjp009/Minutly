@@ -53,6 +53,16 @@ struct SettingsView: View {
     @State private var languageSearchText = ""
     @State private var selectedLanguages: [Language] = []
 
+    // Summary settings
+    @AppStorage("summaryModel") private var summaryModel: String = "gpt-3.5-turbo"
+    @AppStorage("summaryType") private var summaryType: String = "keypoints_tasks"
+    @AppStorage("customSummaryPrompt") private var customSummaryPrompt: String = ""
+    @AppStorage("customSummaryInstructions") private var customSummaryInstructions: String = ""
+    @AppStorage("showAdvancedPromptEditor") private var showAdvancedPromptEditor: Bool = false
+
+    // Feature flag to show/hide onboarding functionality
+    private let showOnboardingFeature = false // Set to true to re-enable onboarding
+
     init(initialSection: SettingsSection = .general) {
         _selectedSection = State(initialValue: initialSection)
     }
@@ -61,6 +71,7 @@ struct SettingsView: View {
         case general = "General"
         case meetingDetection = "Meeting Detection"
         case transcription = "Transcription"
+        case summary = "Summary"
         case api = "API"
 
         var id: String { rawValue }
@@ -217,6 +228,8 @@ struct SettingsView: View {
             return "General"
         case .transcription:
             return "Transcription"
+        case .summary:
+            return "Summary"
         case .api:
             return "API"
         }
@@ -232,6 +245,8 @@ struct SettingsView: View {
                     meetingDetectionSection
                 case .transcription:
                     transcriptionSection
+                case .summary:
+                    summarySection
                 case .api:
                     apiSection
                 }
@@ -284,36 +299,38 @@ struct SettingsView: View {
                 }
             }
 
-            Divider()
-                .padding(.vertical, 8)
-
-            // Restart Onboarding Section
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Image(systemName: "arrow.clockwise.circle")
-                        .foregroundStyle(.blue)
-                    Text("Restart Onboarding")
-                        .font(.headline)
-                }
-
-                Text("Start the onboarding process again to reconfigure your API keys and permissions.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                Button(action: {
-                    showOnboardingResetAlert = true
-                }) {
-                    HStack {
-                        Image(systemName: "arrow.clockwise")
-                        Text("Restart Onboarding")
-                    }
-                    .padding(.horizontal, 16)
+            if showOnboardingFeature {
+                Divider()
                     .padding(.vertical, 8)
-                    .background(Color.blue.opacity(0.1))
-                    .foregroundStyle(.blue)
-                    .cornerRadius(8)
+
+                // Restart Onboarding Section
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "arrow.clockwise.circle")
+                            .foregroundStyle(.blue)
+                        Text("Restart Onboarding")
+                            .font(.headline)
+                    }
+
+                    Text("Start the onboarding process again to reconfigure your API keys and permissions.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Button(action: {
+                        showOnboardingResetAlert = true
+                    }) {
+                        HStack {
+                            Image(systemName: "arrow.clockwise")
+                            Text("Restart Onboarding")
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.blue.opacity(0.1))
+                        .foregroundStyle(.blue)
+                        .cornerRadius(8)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
         }
         .padding(.leading, 16)
@@ -429,6 +446,258 @@ struct SettingsView: View {
         }
         .padding(.leading, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var summarySection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Summary")
+                .font(.title2)
+                .fontWeight(.bold)
+
+            // AI Model Selection
+            VStack(alignment: .leading, spacing: 8) {
+                Text("AI Model")
+                    .font(.headline)
+
+                Picker("Model", selection: $summaryModel) {
+                    Text("GPT-3.5 Turbo (Fast & Affordable)").tag("gpt-3.5-turbo")
+                    // Future models:
+                    // Text("GPT-4 Turbo (Higher Quality)").tag("gpt-4-turbo")
+                    // Text("GPT-4 (Best Quality)").tag("gpt-4")
+                }
+                .pickerStyle(.radioGroup)
+            }
+
+            Divider()
+                .padding(.vertical, 8)
+
+            // Summary Type Selection
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Summary Type")
+                    .font(.headline)
+
+                Picker("Type", selection: $summaryType) {
+                    Text("Key Points + Tasks").tag("keypoints_tasks")
+                    Text("Executive Summary").tag("executive")
+                    Text("Technical Meeting Notes").tag("technical")
+                    Text("Sales Call Summary").tag("sales")
+                    Text("Custom Prompt").tag("custom")
+                }
+                .pickerStyle(.radioGroup)
+            }
+
+            // Custom Prompt Section (only shown when "Custom" is selected)
+            if summaryType == "custom" {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Custom Instructions")
+                        .font(.headline)
+
+                    // Simple mode (default)
+                    if !showAdvancedPromptEditor {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Tell us what you want in your summary:")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+
+                            TextEditor(text: $customSummaryInstructions)
+                                .font(.system(size: 14))
+                                .frame(minHeight: 150)
+                                .border(Color.gray.opacity(0.3), width: 1)
+                                .cornerRadius(4)
+
+                            Text("Example: \"Focus on customer feedback and next steps. Include any pricing discussions and competitive mentions.\"")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .padding(.top, 4)
+
+                            if customSummaryInstructions.isEmpty {
+                                HStack {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .foregroundStyle(.orange)
+                                    Text("Custom instructions are empty. Default 'Key Points + Tasks' will be used.")
+                                        .font(.caption)
+                                        .foregroundStyle(.orange)
+                                }
+                                .padding(.top, 4)
+                            }
+                        }
+
+                        // Toggle to advanced mode
+                        Button(action: { showAdvancedPromptEditor = true }) {
+                            HStack {
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                Text("Show advanced editor")
+                                    .font(.caption)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.blue)
+                        .padding(.top, 8)
+                    } else {
+                        // Advanced mode
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.orange)
+                                Text("Advanced Mode: Full control over prompt template")
+                                    .font(.caption)
+                                    .foregroundStyle(.orange)
+                            }
+
+                            Text("Write your custom summary prompt below. Use {{TRANSCRIPTION}} where you want the conversation text inserted. The response must be valid JSON matching the format: {\"summary\": \"...\", \"tasks\": [...]}")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+
+                            TextEditor(text: $customSummaryPrompt)
+                                .font(.system(size: 12, design: .monospaced))
+                                .frame(minHeight: 200)
+                                .border(Color.gray.opacity(0.3), width: 1)
+                                .cornerRadius(4)
+
+                            if customSummaryPrompt.isEmpty {
+                                HStack {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .foregroundStyle(.orange)
+                                    Text("Custom prompt is empty. Using simple instructions instead.")
+                                        .font(.caption)
+                                        .foregroundStyle(.orange)
+                                }
+                            }
+
+                            // Toggle back to simple mode
+                            Button(action: { showAdvancedPromptEditor = false }) {
+                                HStack {
+                                    Image(systemName: "chevron.left")
+                                        .font(.caption)
+                                    Text("Back to simple mode")
+                                        .font(.caption)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.blue)
+                            .padding(.top, 8)
+                        }
+                    }
+                }
+                .transition(.opacity)
+            }
+
+            Divider()
+                .padding(.vertical, 8)
+
+            // Summary Type Descriptions
+            switch summaryType {
+            case "keypoints_tasks":
+                infoBlock(
+                    icon: "list.bullet.clipboard",
+                    color: .blue,
+                    title: "Key Points + Tasks",
+                    description: "Default format. Extracts main discussion points and actionable tasks with owners, deadlines, and priorities. Ideal for team meetings and project discussions."
+                )
+            case "executive":
+                infoBlock(
+                    icon: "briefcase.fill",
+                    color: .purple,
+                    title: "Executive Summary",
+                    description: "High-level overview focused on strategic decisions, business outcomes, and leadership-relevant action items. Best for board meetings and executive reviews."
+                )
+            case "technical":
+                infoBlock(
+                    icon: "chevron.left.forwardslash.chevron.right",
+                    color: .green,
+                    title: "Technical Meeting Notes",
+                    description: "Detailed engineering notes covering technical decisions, architecture discussions, implementation details, and code/system changes. Optimized for development team meetings."
+                )
+            case "sales":
+                infoBlock(
+                    icon: "cart.fill",
+                    color: .orange,
+                    title: "Sales Call Summary",
+                    description: "Sales-focused summary capturing customer needs, pain points, objections, pricing discussions, and deal progress. Perfect for sales calls and customer meetings."
+                )
+            case "custom":
+                if showAdvancedPromptEditor {
+                    infoBlock(
+                        icon: "gearshape.fill",
+                        color: .gray,
+                        title: "Custom Prompt (Advanced)",
+                        description: "Using advanced JSON prompt editor. Full control over prompt template with {{TRANSCRIPTION}} placeholder."
+                    )
+                } else {
+                    infoBlock(
+                        icon: "gearshape.fill",
+                        color: .blue,
+                        title: "Custom Instructions",
+                        description: "Using simple custom instructions. Write what you want in plain language - we'll handle the technical details automatically."
+                    )
+                }
+            default:
+                EmptyView()
+            }
+
+            Divider()
+                .padding(.vertical, 8)
+
+            // Model Comparison Table
+            modelComparisonSection
+
+            // Warning if OpenAI key is missing
+            if openAIKey.isEmpty {
+                infoBlock(
+                    icon: "exclamationmark.triangle.fill",
+                    color: .red,
+                    title: "OpenAI Key Required",
+                    description: "Add your OpenAI API key in the API tab to enable AI summaries."
+                )
+            }
+        }
+        .padding(.leading, 16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var modelComparisonSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Model Comparison")
+                .font(.title2)
+                .fontWeight(.bold)
+
+            VStack(alignment: .leading, spacing: 12) {
+                SummaryModelFeatureRow(
+                    feature: "Cost per Summary",
+                    gpt35: "$0.001-0.002",
+                    gpt4: "$0.01-0.02 (future)",
+                    appleIntel: "Free (future)"
+                )
+                SummaryModelFeatureRow(
+                    feature: "Speed",
+                    gpt35: "Fast (~3-5s)",
+                    gpt4: "Medium (~8-12s)",
+                    appleIntel: "Very Fast (<2s)"
+                )
+                SummaryModelFeatureRow(
+                    feature: "Quality",
+                    gpt35: "Good",
+                    gpt4: "Excellent",
+                    appleIntel: "Good"
+                )
+                SummaryModelFeatureRow(
+                    feature: "Max Length",
+                    gpt35: "~25,000 tokens",
+                    gpt4: "~128,000 tokens",
+                    appleIntel: "Unlimited"
+                )
+                SummaryModelFeatureRow(
+                    feature: "Privacy",
+                    gpt35: "Cloud-based",
+                    gpt4: "Cloud-based",
+                    appleIntel: "On-device"
+                )
+            }
+            .padding(16)
+            .background(Color.gray.opacity(0.05))
+            .cornerRadius(12)
+        }
     }
 
     private var languageSelectionSection: some View {
@@ -716,6 +985,53 @@ struct FeatureRow: View {
                     .font(.caption)
             }
             .frame(width: 120, alignment: .leading)
+        }
+    }
+}
+
+struct SummaryModelFeatureRow: View {
+    let feature: String
+    let gpt35: String
+    let gpt4: String
+    let appleIntel: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(feature)
+                .font(.caption)
+                .fontWeight(.medium)
+                .frame(width: 120, alignment: .leading)
+
+            Spacer()
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("GPT-3.5")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Text(gpt35)
+                    .font(.caption)
+            }
+            .frame(width: 110, alignment: .leading)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("GPT-4")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Text(gpt4)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(width: 110, alignment: .leading)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Apple Intelligence")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Text(appleIntel)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(width: 110, alignment: .leading)
         }
     }
 }

@@ -60,9 +60,9 @@ struct MinutlyApp: App {
                     .onAppear {
                         setupApp()
                     }
-                    .opacity(showSplashScreen || !onboardingCompleted ? 0 : 1)
+                    .opacity(showSplashScreen ? 0 : 1) // Show after splash screen (onboarding disabled)
 
-                if !onboardingCompleted {
+                if false { // Onboarding temporarily disabled
                     OnboardingContainerView()
                         .environmentObject(appState.recorder)
                         .transition(.opacity)
@@ -84,6 +84,7 @@ struct MinutlyApp: App {
                 }
             }
         }
+        .defaultSize(width: 1000, height: 650)
         .commands {
             CommandGroup(replacing: .appSettings) {
                 Button("Settings...") {
@@ -101,8 +102,13 @@ struct MinutlyApp: App {
         // Always set up menu bar (app is menu bar only)
         appState.menuBarController.setupMenuBar()
 
-        // Ensure dock icon is hidden (LSUIElement in Info.plist handles this at launch)
-        NSApp.setActivationPolicy(.accessory)
+        // Set as regular app to support full-screen mode
+        NSApp.setActivationPolicy(.regular)
+
+        // Enable full-screen support
+        if let window = NSApp.windows.first {
+            window.collectionBehavior.insert(.fullScreenPrimary)
+        }
     }
 }
 

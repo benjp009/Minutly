@@ -90,7 +90,13 @@ class OpenAISummarizationService {
 
     // MARK: - Summarization
 
-    func summarize(transcription: String, onProgress: @escaping (Double, String) -> Void) async throws -> ConversationSummary {
+    func summarize(
+        transcription: String,
+        summaryType: String? = nil,
+        customPrompt: String? = nil,
+        customInstructions: String? = nil,
+        onProgress: @escaping (Double, String) -> Void
+    ) async throws -> ConversationSummary {
         print("🤖 Starting OpenAI summarization...")
 
         // Validate transcription length
@@ -103,41 +109,23 @@ class OpenAISummarizationService {
             throw OpenAIError.invalidURL
         }
 
-        // Build the prompt
-        let systemPrompt = """
-        You are a professional meeting assistant. Analyze conversations and extract key information accurately.
-        Never invent or infer information not explicitly stated in the conversation.
-        Keep everything factual and business-oriented.
-        """
+        // Determine summary type from UserDefaults if not provided
+        let type = summaryType ?? UserDefaults.standard.string(forKey: "summaryType") ?? "keypoints_tasks"
+        let custom = customPrompt ?? UserDefaults.standard.string(forKey: "customSummaryPrompt") ?? ""
+        let instructions = customInstructions ?? UserDefaults.standard.string(forKey: "customSummaryInstructions") ?? ""
 
-        let userPrompt = """
-        Analyze the following conversation and produce a concise summary of the key points discussed.
-        Then generate a clear, prioritized list of tasks/objectives extracted strictly from the conversation, with for each:
+        // Build the prompts using template system
+        let systemPrompt = SummaryPromptTemplates.systemPrompt
+        let userPromptTemplate = SummaryPromptTemplates.userPrompt(
+            for: type,
+            customPrompt: custom.isEmpty ? nil : custom,
+            customInstructions: instructions.isEmpty ? nil : instructions
+        )
 
-        - Task
-        - Owner (if mentioned)
-        - Deadline (if mentioned)
-        - Dependencies (if mentioned)
+        // Replace placeholder with actual transcription
+        let userPrompt = userPromptTemplate.replacingOccurrences(of: "{{TRANSCRIPTION}}", with: transcription)
 
-        Do not invent or infer anything not explicitly stated. Keep everything factual and business-oriented.
-
-        Format your response as JSON with this structure:
-        {
-          "summary": "Brief summary of key points...",
-          "tasks": [
-            {
-              "task": "Task description",
-              "owner": "Person name or null",
-              "deadline": "Deadline or null",
-              "dependencies": "Dependencies or null",
-              "priority": "high/medium/low"
-            }
-          ]
-        }
-
-        Conversation:
-        \(transcription)
-        """
+        print("✅ Using summary type: \(type)")
 
         // Create request
         let requestBody: [String: Any] = [

@@ -78,7 +78,12 @@ class TranscriptionService {
     }
 
     // Summarize transcription
-    func summarize(transcription: String) async throws -> ConversationSummary {
+    func summarize(
+        transcription: String,
+        summaryType: String? = nil,
+        customPrompt: String? = nil,
+        customInstructions: String? = nil
+    ) async throws -> ConversationSummary {
         let apiKey: String?
         do {
             apiKey = try KeychainService.shared.retrieveAPIKey(for: "openai")
@@ -98,7 +103,12 @@ class TranscriptionService {
             throw TranscriptionError.openAIKeyMissing
         }
 
-        return try await service.summarize(transcription: transcription) { progressValue, status in
+        return try await service.summarize(
+            transcription: transcription,
+            summaryType: summaryType,
+            customPrompt: customPrompt,
+            customInstructions: customInstructions
+        ) { progressValue, status in
             DispatchQueue.main.async {
                 self.progress = progressValue
                 self.statusMessage = status

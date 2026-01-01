@@ -8,6 +8,7 @@
 import Foundation
 import ScreenCaptureKit
 @preconcurrency import AVFoundation
+@preconcurrency import AVFAudio
 import Combine
 import AppKit
 
@@ -748,6 +749,13 @@ class ScreenRecorder: NSObject, ObservableObject {
             print("   Mic URL: \(micURL.path)")
 
             let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+
+            // Ensure Documents directory exists
+            if !FileManager.default.fileExists(atPath: documentsURL.path) {
+                try? FileManager.default.createDirectory(at: documentsURL, withIntermediateDirectories: true)
+                print("   📁 Created Documents directory")
+            }
+
             let finalFileName = "\(generateFilename(meetingTitle: currentMeetingTitle)).wav"
             let destinationURL = documentsURL.appendingPathComponent(finalFileName)
 
@@ -820,6 +828,17 @@ class ScreenRecorder: NSObject, ObservableObject {
     func fetchRecordings() {
         let fileManager = FileManager.default
         guard let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
+
+        // Ensure Documents directory exists
+        if !fileManager.fileExists(atPath: documentsURL.path) {
+            do {
+                try fileManager.createDirectory(at: documentsURL, withIntermediateDirectories: true)
+                print("📁 Created Documents directory in fetchRecordings")
+            } catch {
+                print("❌ Failed to create Documents directory: \(error)")
+                return
+            }
+        }
 
         do {
             let fileURLs = try fileManager.contentsOfDirectory(at: documentsURL, includingPropertiesForKeys: nil)

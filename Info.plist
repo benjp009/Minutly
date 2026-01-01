@@ -6,7 +6,5 @@
 	<string>Minutly needs access to your microphone to record audio from meetings and conversations.</string>
 	<key>NSScreenCaptureUsageDescription</key>
 	<string>Minutly needs Screen Recording permission to capture system audio from meetings and applications.</string>
-	<key>LSUIElement</key>
-	<true/>
 </dict>
 </plist>

@@ -27,6 +27,26 @@ Minutly is a privacy-focused macOS app built with SwiftUI that captures audio co
 
 ---
 
+## 🚀 Pre-Launch Special Offer
+
+**Get Minutly at an exclusive early-bird price: €15/month instead of €29/month!**
+
+### Why Choose Minutly?
+
+Unlike generic transcription services that compromise your privacy or expensive enterprise solutions that break the bank, Minutly offers:
+
+- **Privacy-First Design** - Your conversations stay on your device with military-grade AES-256 encryption
+- **All-in-One Solution** - Recording, transcription, AI summaries, and meeting detection in a single native macOS app
+- **Smart Pre-buffering** - Never miss the beginning of important conversations with 30-second automatic capture
+- **Flexible Transcription** - Choose between free offline Apple Speech or premium cloud providers with speaker identification
+- **Meeting Intelligence** - Automatic calendar integration with AI-powered action items and participant insights
+
+**[Discover Minutly Pre-Launch Pricing →](https://minutly.io/discover-minutly-pre-launch/#pricing)**
+
+*Save 48% with our early-bird offer and secure your privacy-focused meeting assistant today!*
+
+---
+
 ## Features
 
 ### Audio Recording

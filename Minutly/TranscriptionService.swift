@@ -16,94 +16,25 @@ class TranscriptionService {
     var statusMessage: String = ""
 
     private var recognizer: SFSpeechRecognizer?
-    private var assemblyAIService: AssemblyAIService?
-    private var openAIService: OpenAISummarizationService?
-    private var openAITranscriptionService: OpenAITranscriptionService?
+    private let llamaService = LocalLlamaSummarizationService.shared
     private let encryptionService = EncryptionService.shared
     private let auditLogger = AuditLogger.shared
 
     init() {
         // Initialize recognizer based on language preference
         recognizer = Self.createRecognizer()
-
-        // Initialize AssemblyAI if API key is available
-        do {
-            if let apiKey = try KeychainService.shared.retrieveAPIKey(for: "assemblyai"), !apiKey.isEmpty {
-                assemblyAIService = AssemblyAIService(apiKey: apiKey)
-                print("✅ AssemblyAI service initialized")
-            }
-        } catch {
-            print("⚠️ Error loading AssemblyAI key from Keychain: \(error.localizedDescription)")
-        }
-
-        // Initialize OpenAI if API key is available
-        do {
-            if let apiKey = try KeychainService.shared.retrieveAPIKey(for: "openai"), !apiKey.isEmpty {
-                openAIService = OpenAISummarizationService(apiKey: apiKey)
-                openAITranscriptionService = OpenAITranscriptionService(apiKey: apiKey)
-                print("✅ OpenAI service initialized")
-            }
-        } catch {
-            print("⚠️ Error loading OpenAI key from Keychain: \(error.localizedDescription)")
-        }
+        print("✅ Apple Speech Recognition initialized (local, free)")
     }
 
-    // Update AssemblyAI API key
-    func updateAssemblyAIKey(_ key: String) {
-        if !key.isEmpty {
-            if assemblyAIService == nil {
-                assemblyAIService = AssemblyAIService(apiKey: key)
-            } else {
-                assemblyAIService?.updateAPIKey(key)
-            }
-            print("✅ AssemblyAI API key updated")
-        }
-    }
 
-    // Update OpenAI API key
-    func updateOpenAIKey(_ key: String) {
-        if !key.isEmpty {
-            if openAIService == nil {
-                openAIService = OpenAISummarizationService(apiKey: key)
-            } else {
-                openAIService?.updateAPIKey(key)
-            }
-            if openAITranscriptionService == nil {
-                openAITranscriptionService = OpenAITranscriptionService(apiKey: key)
-            } else {
-                openAITranscriptionService?.updateAPIKey(key)
-            }
-            print("✅ OpenAI API key updated")
-        }
-    }
-
-    // Summarize transcription
+    // Summarize transcription with local Llama
     func summarize(
         transcription: String,
         summaryType: String? = nil,
         customPrompt: String? = nil,
         customInstructions: String? = nil
     ) async throws -> ConversationSummary {
-        let apiKey: String?
-        do {
-            apiKey = try KeychainService.shared.retrieveAPIKey(for: "openai")
-        } catch {
-            throw TranscriptionError.openAIKeyMissing
-        }
-
-        guard let apiKey = apiKey, !apiKey.isEmpty else {
-            throw TranscriptionError.openAIKeyMissing
-        }
-
-        if openAIService == nil {
-            openAIService = OpenAISummarizationService(apiKey: apiKey)
-        }
-
-        guard let service = openAIService else {
-            throw TranscriptionError.openAIKeyMissing
-        }
-
-        return try await service.summarize(
+        return try await llamaService.summarize(
             transcription: transcription,
             summaryType: summaryType,
             customPrompt: customPrompt,
@@ -186,7 +117,7 @@ class TranscriptionService {
         }
     }
 
-    // Main transcribe method - chooses provider based on settings
+    // Main transcribe method - uses Apple Speech Recognition only
     func transcribe(audioURL: URL) async throws -> String {
         // Decrypt the audio file if it's encrypted
         let actualAudioURL: URL
@@ -209,17 +140,9 @@ class TranscriptionService {
             actualAudioURL = audioURL
         }
 
-        let provider = UserDefaults.standard.string(forKey: "transcriptionProvider") ?? "apple"
-
         do {
-            let result: String
-            if provider == "assemblyai" {
-                result = try await transcribeWithAssemblyAI(audioURL: actualAudioURL)
-            } else if provider == "openai" {
-                result = try await transcribeWithOpenAI(audioURL: actualAudioURL)
-            } else {
-                result = try await transcribeWithApple(audioURL: actualAudioURL)
-            }
+            // Always use Apple Speech Recognition (free, local, no API key needed)
+            let result = try await transcribeWithApple(audioURL: actualAudioURL)
 
             // Clean up temporary decrypted file
             if actualAudioURL != audioURL {
@@ -236,123 +159,6 @@ class TranscriptionService {
         }
     }
 
-    // Transcribe with AssemblyAI
-    private func transcribeWithAssemblyAI(audioURL: URL) async throws -> String {
-        print("🎙️ Using AssemblyAI for transcription")
-
-        // Check if API key is configured
-        let apiKey: String?
-        do {
-            apiKey = try KeychainService.shared.retrieveAPIKey(for: "assemblyai")
-        } catch {
-            throw TranscriptionError.assemblyAIKeyMissing
-        }
-
-        guard let apiKey = apiKey, !apiKey.isEmpty else {
-            throw TranscriptionError.assemblyAIKeyMissing
-        }
-
-        // Ensure service is initialized
-        if assemblyAIService == nil {
-            assemblyAIService = AssemblyAIService(apiKey: apiKey)
-        }
-
-        guard let service = assemblyAIService else {
-            throw TranscriptionError.assemblyAIKeyMissing
-        }
-
-        isTranscribing = true
-        progress = 0.0
-        errorMessage = nil
-
-        defer {
-            isTranscribing = false
-        }
-
-        do {
-            // Get language preference from settings (use first language in the list)
-            let languagesString = UserDefaults.standard.string(forKey: "transcriptionLanguages") ?? "en"
-            let languageCodes = languagesString.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }
-            let languageCode = languageCodes.first
-
-            if let lang = languageCode {
-                print("🌍 Using language: \(lang) (from list: \(languagesString))")
-            } else {
-                print("🌍 Using automatic language detection")
-            }
-
-            let transcript = try await service.transcribe(audioURL: audioURL, languageCode: languageCode) { [weak self] progressValue, status in
-                DispatchQueue.main.async {
-                    self?.progress = progressValue
-                    self?.statusMessage = status
-                    print("📊 AssemblyAI Progress: \(Int(progressValue * 100))% - \(status)")
-                }
-            }
-
-            // Return formatted transcript with speaker labels
-            return transcript.formattedTranscript()
-
-        } catch {
-            print("❌ AssemblyAI transcription failed: \(error.localizedDescription)")
-            errorMessage = "AssemblyAI failed: \(error.localizedDescription)"
-            throw error
-        }
-    }
-
-    private func transcribeWithOpenAI(audioURL: URL) async throws -> String {
-        print("🎙️ Using OpenAI Whisper for transcription")
-
-        let apiKey: String?
-        do {
-            apiKey = try KeychainService.shared.retrieveAPIKey(for: "openai")
-        } catch {
-            throw OpenAIError.invalidAPIKey
-        }
-
-        guard let apiKey = apiKey, !apiKey.isEmpty else {
-            throw OpenAIError.invalidAPIKey
-        }
-
-        if openAITranscriptionService == nil {
-            openAITranscriptionService = OpenAITranscriptionService(apiKey: apiKey)
-        }
-
-        guard let service = openAITranscriptionService else {
-            throw OpenAIError.invalidAPIKey
-        }
-
-        isTranscribing = true
-        progress = 0.0
-        errorMessage = nil
-
-        defer { isTranscribing = false }
-
-        do {
-            // Get language preference from settings (use first language in the list)
-            let languagesString = UserDefaults.standard.string(forKey: "transcriptionLanguages") ?? "en"
-            let languageCodes = languagesString.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }
-            let languageCode = languageCodes.first
-
-            if let lang = languageCode {
-                print("🌍 Using language: \(lang) (from list: \(languagesString))")
-            } else {
-                print("🌍 Using automatic language detection")
-            }
-
-            let transcript = try await service.transcribe(audioURL: audioURL, languageCode: languageCode) { [weak self] progressValue, status in
-                DispatchQueue.main.async {
-                    self?.progress = progressValue
-                    self?.statusMessage = status
-                    print("📊 OpenAI Progress: \(Int(progressValue * 100))% - \(status)")
-                }
-            }
-            return transcript
-        } catch {
-            print("❌ OpenAI transcription failed: \(error.localizedDescription)")
-            errorMessage = "OpenAI failed: \(error.localizedDescription)"
-            throw error
-        }
-    }
 
     // Transcribe with Apple Speech
     private func transcribeWithApple(audioURL: URL) async throws -> String {
@@ -644,8 +450,6 @@ enum TranscriptionError: LocalizedError {
     case recognizerUnavailable
     case saveFailed
     case fileNotFound
-    case assemblyAIKeyMissing
-    case openAIKeyMissing
     case encryptionError(String)
 
     var errorDescription: String? {
@@ -658,10 +462,6 @@ enum TranscriptionError: LocalizedError {
             return "Failed to save transcription file."
         case .fileNotFound:
             return "Audio file not found. Please make sure the recording exists."
-        case .assemblyAIKeyMissing:
-            return "AssemblyAI API key not configured. Please add your API key in Settings."
-        case .openAIKeyMissing:
-            return "OpenAI API key not configured. Please add your API key in Settings to enable summarization."
         case .encryptionError(let message):
             return "Failed to decrypt audio file: \(message)"
         }

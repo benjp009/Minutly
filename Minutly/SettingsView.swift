@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import EventKit
 
 // Language model
 struct Language: Identifiable, Equatable {
@@ -39,29 +40,19 @@ struct Language: Identifiable, Equatable {
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var assemblyAIKey: String = ""
-    @State private var openAIKey: String = ""
-    @AppStorage("transcriptionProvider") private var transcriptionProvider: String = "apple"
     @AppStorage("transcriptionLanguages") private var transcriptionLanguagesString: String = "en"
     @AppStorage("enableMeetingDetection") private var enableMeetingDetection = false
     @AppStorage("enableMenuBarMode") private var enableMenuBarMode = false
-    @AppStorage("onboardingCompleted") private var onboardingCompleted = false
     @State private var showRestartAlert = false
-    @State private var showOnboardingResetAlert = false
     @State private var selectedSection: SettingsSection
-    @State private var loadingKeys = true
     @State private var languageSearchText = ""
     @State private var selectedLanguages: [Language] = []
 
     // Summary settings
-    @AppStorage("summaryModel") private var summaryModel: String = "gpt-3.5-turbo"
     @AppStorage("summaryType") private var summaryType: String = "keypoints_tasks"
     @AppStorage("customSummaryPrompt") private var customSummaryPrompt: String = ""
     @AppStorage("customSummaryInstructions") private var customSummaryInstructions: String = ""
     @AppStorage("showAdvancedPromptEditor") private var showAdvancedPromptEditor: Bool = false
-
-    // Feature flag to show/hide onboarding functionality
-    private let showOnboardingFeature = false // Set to true to re-enable onboarding
 
     init(initialSection: SettingsSection = .general) {
         _selectedSection = State(initialValue: initialSection)
@@ -72,7 +63,6 @@ struct SettingsView: View {
         case meetingDetection = "Meeting Detection"
         case transcription = "Transcription"
         case summary = "Summary"
-        case api = "API"
 
         var id: String { rawValue }
     }
@@ -89,55 +79,8 @@ struct SettingsView: View {
         } message: {
             Text("Please restart Minutly for the menu bar mode change to take effect.")
         }
-        .alert("Restart Onboarding", isPresented: $showOnboardingResetAlert) {
-            Button("Cancel", role: .cancel) {}
-            Button("Restart", role: .destructive) {
-                // Close settings first
-                dismiss()
-                // Small delay to let UI update
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    resetOnboarding()
-                }
-            }
-        } message: {
-            Text("This will restart the onboarding process and show you the first onboarding screen.")
-        }
         .onAppear {
-            loadKeysFromKeychain()
             loadSelectedLanguages()
-        }
-    }
-
-    private func loadKeysFromKeychain() {
-        do {
-            if let key = try KeychainService.shared.retrieveAPIKey(for: "assemblyai") {
-                assemblyAIKey = key
-            }
-            if let key = try KeychainService.shared.retrieveAPIKey(for: "openai") {
-                openAIKey = key
-            }
-        } catch {
-            print("⚠️ Error loading API keys from Keychain: \(error.localizedDescription)")
-        }
-        loadingKeys = false
-    }
-
-    private func saveKeysToKeychain() {
-        do {
-            if !assemblyAIKey.isEmpty {
-                try KeychainService.shared.saveAPIKey(assemblyAIKey, for: "assemblyai")
-            } else {
-                // Delete key from Keychain if field is empty
-                try KeychainService.shared.deleteAPIKey(for: "assemblyai")
-            }
-            if !openAIKey.isEmpty {
-                try KeychainService.shared.saveAPIKey(openAIKey, for: "openai")
-            } else {
-                // Delete key from Keychain if field is empty
-                try KeychainService.shared.deleteAPIKey(for: "openai")
-            }
-        } catch {
-            print("❌ Error saving API keys to Keychain: \(error.localizedDescription)")
         }
     }
 
@@ -170,15 +113,6 @@ struct SettingsView: View {
         guard selectedLanguages.count > 1 else { return }
         selectedLanguages.removeAll(where: { $0.code == language.code })
         saveSelectedLanguages()
-    }
-
-    private func resetOnboarding() {
-        // Reset onboarding state - this will immediately show the onboarding screen
-        onboardingCompleted = false
-        UserDefaults.standard.set(1, forKey: "currentOnboardingPage")
-
-        // The onboarding will now show automatically because onboardingCompleted is false
-        // No need to close the app - the UI will update immediately
     }
 
     private var sidebar: some View {
@@ -230,8 +164,6 @@ struct SettingsView: View {
             return "Transcription"
         case .summary:
             return "Summary"
-        case .api:
-            return "API"
         }
     }
 
@@ -247,8 +179,6 @@ struct SettingsView: View {
                     transcriptionSection
                 case .summary:
                     summarySection
-                case .api:
-                    apiSection
                 }
             }
             .padding(.top, 24)
@@ -298,40 +228,6 @@ struct SettingsView: View {
                     }
                 }
             }
-
-            if showOnboardingFeature {
-                Divider()
-                    .padding(.vertical, 8)
-
-                // Restart Onboarding Section
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Image(systemName: "arrow.clockwise.circle")
-                            .foregroundStyle(.blue)
-                        Text("Restart Onboarding")
-                            .font(.headline)
-                    }
-
-                    Text("Start the onboarding process again to reconfigure your API keys and permissions.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    Button(action: {
-                        showOnboardingResetAlert = true
-                    }) {
-                        HStack {
-                            Image(systemName: "arrow.clockwise")
-                            Text("Restart Onboarding")
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(Color.blue.opacity(0.1))
-                        .foregroundStyle(.blue)
-                        .cornerRadius(8)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
         }
         .padding(.leading, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -344,6 +240,11 @@ struct SettingsView: View {
                 .fontWeight(.bold)
 
             Toggle("Auto-detect meetings from Calendar", isOn: $enableMeetingDetection)
+                .onChange(of: enableMeetingDetection) { _, newValue in
+                    if newValue {
+                        handleMeetingDetectionToggle()
+                    }
+                }
 
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
@@ -377,72 +278,64 @@ struct SettingsView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    // MARK: - Calendar Permission Handling
+
+    private func handleMeetingDetectionToggle() {
+        Task {
+            let granted = await requestCalendarPermission()
+            if !granted {
+                await MainActor.run {
+                    enableMeetingDetection = false
+                    showCalendarPermissionAlert()
+                }
+            }
+        }
+    }
+
+    private func requestCalendarPermission() async -> Bool {
+        let eventStore = EKEventStore()
+        do {
+            if #available(macOS 14.0, *) {
+                let granted = try await eventStore.requestFullAccessToEvents()
+                return granted
+            } else {
+                return await withCheckedContinuation { continuation in
+                    eventStore.requestAccess(to: .event) { granted, _ in
+                        continuation.resume(returning: granted)
+                    }
+                }
+            }
+        } catch {
+            return false
+        }
+    }
+
+    @MainActor
+    private func showCalendarPermissionAlert() {
+        let alert = NSAlert()
+        alert.messageText = "Calendar Access Required"
+        alert.informativeText = "Meeting Detection requires access to your calendar to detect upcoming meetings."
+        alert.alertStyle = .warning
+        alert.runModal()
+    }
+
     private var transcriptionSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Transcription")
                 .font(.title2)
                 .fontWeight(.bold)
 
-            Picker("Provider", selection: $transcriptionProvider) {
-                Text("Apple Speech (Free, No Speaker ID)").tag("apple")
-                Text("AssemblyAI (Paid, Speaker ID)").tag("assemblyai")
-                Text("OpenAI Whisper (Paid, High Accuracy)").tag("openai")
-            }
-            .pickerStyle(.radioGroup)
+            infoBlock(
+                icon: "info.circle.fill",
+                color: .blue,
+                title: "Apple Speech Recognition (Free & Offline)",
+                description: "Uses Apple's built-in speech recognition. Works offline, completely free, and supports multiple languages. Note: Speaker identification is not available."
+            )
 
             Divider()
                 .padding(.vertical, 8)
 
             languageSelectionSection
-
-            Divider()
-                .padding(.vertical, 8)
-
-            comparisonSection
-
-            Divider()
-                .padding(.vertical, 8)
-
-            switch transcriptionProvider {
-            case "assemblyai":
-                infoBlock(
-                    icon: "network",
-                    color: .purple,
-                    title: "AssemblyAI Cloud",
-                    description: "Supports 99+ languages, offers speaker diarization, and has higher accuracy. Requires an AssemblyAI API key."
-                )
-            case "openai":
-                infoBlock(
-                    icon: "sparkles",
-                    color: .orange,
-                    title: "OpenAI Whisper",
-                    description: "Uses OpenAI's Whisper model for transcription. Requires an OpenAI API key and offers excellent accuracy with per-minute billing."
-                )
-            default:
-                infoBlock(
-                    icon: "info.circle.fill",
-                    color: .blue,
-                    title: "Free & Offline",
-                    description: "Uses Apple's built-in speech recognition. Works offline, supports French, but cannot identify multiple speakers."
-                )
-            }
-
-            if transcriptionProvider == "openai" && (openAIKey.isEmpty) {
-                infoBlock(
-                    icon: "exclamationmark.triangle.fill",
-                    color: .red,
-                    title: "OpenAI Key Required",
-                    description: "Add your OpenAI API key in the API tab to enable Whisper transcription."
-                )
-            }
-            if transcriptionProvider == "assemblyai" && assemblyAIKey.isEmpty {
-                infoBlock(
-                    icon: "exclamationmark.triangle.fill",
-                    color: .red,
-                    title: "AssemblyAI Key Required",
-                    description: "Add your AssemblyAI key in the API tab to enable this provider."
-                )
-            }
         }
         .padding(.leading, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -454,19 +347,12 @@ struct SettingsView: View {
                 .font(.title2)
                 .fontWeight(.bold)
 
-            // AI Model Selection
-            VStack(alignment: .leading, spacing: 8) {
-                Text("AI Model")
-                    .font(.headline)
-
-                Picker("Model", selection: $summaryModel) {
-                    Text("GPT-3.5 Turbo (Fast & Affordable)").tag("gpt-3.5-turbo")
-                    // Future models:
-                    // Text("GPT-4 Turbo (Higher Quality)").tag("gpt-4-turbo")
-                    // Text("GPT-4 (Best Quality)").tag("gpt-4")
-                }
-                .pickerStyle(.radioGroup)
-            }
+            infoBlock(
+                icon: "cpu",
+                color: .purple,
+                title: "Local AI Summarization (Free & Private)",
+                description: "Uses a local Llama model running entirely on your device. No cloud uploads, completely free, and fully private. The model will be downloaded on first use."
+            )
 
             Divider()
                 .padding(.vertical, 8)
@@ -635,100 +521,11 @@ struct SettingsView: View {
             default:
                 EmptyView()
             }
-
-            Divider()
-                .padding(.vertical, 8)
-
-            // Model Comparison Table
-            modelComparisonSection
-
-            // Warning if OpenAI key is missing
-            if openAIKey.isEmpty {
-                infoBlock(
-                    icon: "exclamationmark.triangle.fill",
-                    color: .red,
-                    title: "OpenAI Key Required",
-                    description: "Add your OpenAI API key in the API tab to enable AI summaries."
-                )
-            }
         }
         .padding(.leading, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var modelComparisonSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Model Comparison")
-                .font(.title2)
-                .fontWeight(.bold)
-
-            VStack(alignment: .leading, spacing: 12) {
-                // Header row
-                HStack(spacing: 8) {
-                    Text("Feature")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.secondary)
-                        .frame(width: 120, alignment: .leading)
-
-                    Spacer()
-
-                    Text("GPT-3.5")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.secondary)
-                        .frame(width: 110, alignment: .leading)
-
-                    Text("GPT-4")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.secondary)
-                        .frame(width: 110, alignment: .leading)
-
-                    Text("Apple Intelligence")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.secondary)
-                        .frame(width: 110, alignment: .leading)
-                }
-
-                // Data rows
-                SummaryModelFeatureRow(
-                    feature: "Cost per Summary",
-                    gpt35: "$0.001-0.002",
-                    gpt4: "$0.01-0.02 (future)",
-                    appleIntel: "Free (future)"
-                )
-                SummaryModelFeatureRow(
-                    feature: "Speed",
-                    gpt35: "Fast (~3-5s)",
-                    gpt4: "Medium (~8-12s)",
-                    appleIntel: "Very Fast (<2s)"
-                )
-                SummaryModelFeatureRow(
-                    feature: "Quality",
-                    gpt35: "Good",
-                    gpt4: "Excellent",
-                    appleIntel: "Good"
-                )
-                SummaryModelFeatureRow(
-                    feature: "Max Length",
-                    gpt35: "~25,000 tokens",
-                    gpt4: "~128,000 tokens",
-                    appleIntel: "Unlimited"
-                )
-                SummaryModelFeatureRow(
-                    feature: "Privacy",
-                    gpt35: "Cloud-based",
-                    gpt4: "Cloud-based",
-                    appleIntel: "On-device"
-                )
-            }
-            .padding(16)
-            .background(Color.gray.opacity(0.05))
-            .cornerRadius(12)
-        }
-    }
 
     private var languageSelectionSection: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -855,214 +652,6 @@ struct SettingsView: View {
         .padding(12)
         .background(Color.gray.opacity(0.1))
         .cornerRadius(10)
-    }
-
-    private var apiSection: some View {
-        VStack(alignment: .leading, spacing: 32) {
-            Text("API Settings")
-                .font(.title2)
-                .fontWeight(.bold)
-
-            assemblySection
-            Divider()
-            openAISection
-        }
-        .padding(.leading, 16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var assemblySection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("AssemblyAI API Key")
-                .font(.headline)
-
-            SecureField("Enter your API key", text: $assemblyAIKey)
-                .textFieldStyle(.roundedBorder)
-                .onChange(of: assemblyAIKey) { _, _ in
-                    saveKeysToKeychain()
-                }
-
-            if assemblyAIKey.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    infoBlock(
-                        icon: "key.fill",
-                        color: .orange,
-                        title: "API Key Required",
-                        description: "To use AssemblyAI, sign up on assemblyai.com, get $50 in credits (~200 hours), and paste your key above."
-                    )
-                    Button(action: {
-                        NSWorkspace.shared.open(URL(string: "https://www.assemblyai.com/dashboard/api-keys")!)
-                    }) {
-                        Label("Get API Key", systemImage: "arrow.up.right.square")
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-            } else {
-                HStack {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                    Text("API Key Configured")
-                        .font(.caption)
-                        .foregroundStyle(.green)
-                }
-            }
-        }
-    }
-
-    private var openAISection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("OpenAI API Key")
-                .font(.headline)
-
-            SecureField("Enter your OpenAI API key", text: $openAIKey)
-                .textFieldStyle(.roundedBorder)
-                .onChange(of: openAIKey) { _, _ in
-                    saveKeysToKeychain()
-                }
-
-            if openAIKey.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    infoBlock(
-                        icon: "sparkles",
-                        color: .orange,
-                        title: "AI Summarization Optional",
-                        description: "Enable GPT summaries by creating an API key on platform.openai.com and adding credits (~$5 = 500+ summaries)."
-                    )
-                    Button(action: {
-                        NSWorkspace.shared.open(URL(string: "https://platform.openai.com/api-keys")!)
-                    }) {
-                        Label("Get OpenAI API Key", systemImage: "arrow.up.right.square")
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-                .padding(.vertical, 8)
-            } else {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                        Text("AI Summarization Enabled")
-                            .font(.caption)
-                            .foregroundStyle(.green)
-                    }
-                    Text("GPT-3.5 • ~$0.001-0.002 per summary")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-    }
-
-    private var comparisonSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Features Comparison")
-                .font(.title2)
-                .fontWeight(.bold)
-
-            VStack(alignment: .leading, spacing: 12) {
-                // Header row
-                HStack(spacing: 8) {
-                    Text("Feature")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.secondary)
-                        .frame(width: 120, alignment: .leading)
-
-                    Spacer()
-
-                    Text("Apple")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.secondary)
-                        .frame(width: 100, alignment: .leading)
-
-                    Text("AssemblyAI")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.secondary)
-                        .frame(width: 120, alignment: .leading)
-
-                    Text("OpenAI")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.secondary)
-                        .frame(width: 120, alignment: .leading)
-                }
-
-                // Data rows
-                FeatureRow(feature: "Cost", apple: "Free", assemblyAI: "$0.25-0.37/hour", openAI: "$0.006/min (~$0.36/hour)")
-                FeatureRow(feature: "Speaker Identification", apple: "No", assemblyAI: "Yes", openAI: "No")
-                FeatureRow(feature: "Language Support", apple: "Limited", assemblyAI: "99+ languages", openAI: "99+ languages")
-                FeatureRow(feature: "Offline", apple: "Yes", assemblyAI: "No (requires internet)", openAI: "No (requires internet)")
-                FeatureRow(feature: "Accuracy", apple: "Good", assemblyAI: "Excellent", openAI: "Excellent")
-                FeatureRow(feature: "Processing Speed", apple: "Real-time", assemblyAI: "~25% of audio length", openAI: "Fast")
-            }
-            .padding(16)
-            .background(Color.gray.opacity(0.05))
-            .cornerRadius(12)
-        }
-    }
-}
-
-struct FeatureRow: View {
-    let feature: String
-    let apple: String
-    let assemblyAI: String
-    let openAI: String
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Text(feature)
-                .font(.caption)
-                .fontWeight(.medium)
-                .frame(width: 120, alignment: .leading)
-
-            Spacer()
-
-            Text(apple)
-                .font(.caption)
-                .frame(width: 100, alignment: .leading)
-
-            Text(assemblyAI)
-                .font(.caption)
-                .frame(width: 120, alignment: .leading)
-
-            Text(openAI)
-                .font(.caption)
-                .frame(width: 120, alignment: .leading)
-        }
-    }
-}
-
-struct SummaryModelFeatureRow: View {
-    let feature: String
-    let gpt35: String
-    let gpt4: String
-    let appleIntel: String
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Text(feature)
-                .font(.caption)
-                .fontWeight(.medium)
-                .frame(width: 120, alignment: .leading)
-
-            Spacer()
-
-            Text(gpt35)
-                .font(.caption)
-                .frame(width: 110, alignment: .leading)
-
-            Text(gpt4)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .frame(width: 110, alignment: .leading)
-
-            Text(appleIntel)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .frame(width: 110, alignment: .leading)
-        }
     }
 }
 

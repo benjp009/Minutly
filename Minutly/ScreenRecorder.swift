@@ -96,6 +96,7 @@ class ScreenRecorder: NSObject, ObservableObject {
         self.transcriptionService = TranscriptionService()
         super.init()
         setupMemoryPressureMonitoring()
+        setupAudioDeviceMonitoring()
     }
 
     private func setupMemoryPressureMonitoring() {
@@ -110,6 +111,76 @@ class ScreenRecorder: NSObject, ObservableObject {
             }
         }
         source.resume()
+    }
+
+    private func setupAudioDeviceMonitoring() {
+        // Monitor for audio device changes (Bluetooth connect/disconnect, device switching)
+        NotificationCenter.default.addObserver(
+            forName: .AVCaptureDeviceWasConnected,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self = self else { return }
+            if let device = notification.object as? AVCaptureDevice, device.hasMediaType(.audio) {
+                print("🎧 Audio device connected: \(device.localizedName)")
+                self.handleAudioDeviceChange()
+            }
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: .AVCaptureDeviceWasDisconnected,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self = self else { return }
+            if let device = notification.object as? AVCaptureDevice, device.hasMediaType(.audio) {
+                print("🎧 Audio device disconnected: \(device.localizedName)")
+                self.handleAudioDeviceChange()
+            }
+        }
+    }
+
+    private func handleAudioDeviceChange() {
+        // If currently recording, warn the user
+        if isRecording || isPreBuffering {
+            print("⚠️ Audio device changed during recording")
+
+            // Stop and restart microphone recorder to use new device
+            if let micRecorder = micRecorder, micRecorder.isRecording {
+                print("🔄 Restarting microphone recorder with new device...")
+
+                // Save current URL and settings
+                let currentURL = micRecorder.url
+                let currentSettings = micRecorder.settings
+
+                // Stop old recorder
+                micRecorder.stop()
+                self.micRecorder = nil
+
+                // Small delay to let CoreAudio transition
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                    guard let self = self else { return }
+
+                    do {
+                        // Create new recorder with same settings and URL
+                        let newRecorder = try AVAudioRecorder(url: currentURL, settings: currentSettings)
+                        newRecorder.delegate = self
+                        _ = newRecorder.prepareToRecord()
+
+                        if newRecorder.record() {
+                            self.micRecorder = newRecorder
+                            print("✅ Microphone recorder restarted successfully")
+                        } else {
+                            print("❌ Failed to restart microphone recorder")
+                            self.errorMessage = "Audio device changed. Recording may be interrupted."
+                        }
+                    } catch {
+                        print("❌ Failed to recreate microphone recorder: \(error.localizedDescription)")
+                        self.errorMessage = "Audio device change failed: \(error.localizedDescription)"
+                    }
+                }
+            }
+        }
     }
 
     // MARK: - Pre-buffering
@@ -363,7 +434,7 @@ class ScreenRecorder: NSObject, ObservableObject {
         }
     }
 
-    // Test microphone before starting recording
+    // Test microphone before starting recording (with retry for device transitions)
     func testMicrophoneRecording() async -> Bool {
         let testURL = FileManager.default.temporaryDirectory.appendingPathComponent("mic_test.wav")
 
@@ -374,21 +445,44 @@ class ScreenRecorder: NSObject, ObservableObject {
             AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
         ]
 
-        do {
-            // Try to create and start recorder
-            let testRecorder = try AVAudioRecorder(url: testURL, settings: settings)
-            testRecorder.prepareToRecord()
-            let recordingStarted = testRecorder.record()
-            testRecorder.stop()
+        // Retry up to 3 times with increasing delays (handles device transitions)
+        for attempt in 1...3 {
+            do {
+                // Cleanup old test file if exists
+                try? FileManager.default.removeItem(at: testURL)
 
-            // Cleanup test file
-            try? FileManager.default.removeItem(at: testURL)
+                // Try to create and start recorder
+                let testRecorder = try AVAudioRecorder(url: testURL, settings: settings)
+                testRecorder.prepareToRecord()
+                let recordingStarted = testRecorder.record()
 
-            return recordingStarted
-        } catch {
-            print("❌ Mic test failed: \(error.localizedDescription)")
-            return false
+                // Record for 100ms to verify device is working
+                try? await Task.sleep(nanoseconds: 100_000_000)
+                testRecorder.stop()
+
+                // Cleanup test file
+                try? FileManager.default.removeItem(at: testURL)
+
+                if recordingStarted {
+                    print("✅ Mic test passed (attempt \(attempt))")
+                    return true
+                } else {
+                    print("⚠️ Mic test failed to start (attempt \(attempt))")
+                }
+            } catch let error as NSError {
+                // Error 35 = Resource temporarily unavailable (device transition)
+                if error.code == 35 && attempt < 3 {
+                    let delay = Double(attempt) * 0.5 // 0.5s, 1.0s, 1.5s
+                    print("⚠️ Mic test error \(error.code) (device transition?) - retrying in \(delay)s... (attempt \(attempt)/3)")
+                    try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                    continue
+                } else {
+                    print("❌ Mic test failed: \(error.localizedDescription) (code: \(error.code))")
+                }
+            }
         }
+
+        return false
     }
 
     // Start recording system audio
@@ -526,14 +620,14 @@ class ScreenRecorder: NSObject, ObservableObject {
             
             print("🎤 Initializing microphone recorder...")
             print("   Mic temp file: \(micTempURL?.path ?? "nil")")
-            
+
             do {
                 if let micURL = micTempURL {
                     // Remove existing mic file if any
                     if FileManager.default.fileExists(atPath: micURL.path) {
                         try FileManager.default.removeItem(at: micURL)
                     }
-                    
+
                     micRecorder = try AVAudioRecorder(url: micURL, settings: micSettings)
                     micRecorder?.delegate = self
                     print("   📝 Mic recorder created")

@@ -33,6 +33,31 @@ struct RecordingRow: View {
     @State private var isSummarizing = false
     @State private var summaryError: String?
     @State private var showDeleteConfirmation = false
+    @State private var selectedLanguage: String = ""
+
+    // Available languages for transcription
+    private let availableLanguages: [(code: String, name: String, flag: String)] = [
+        ("en", "English", "🇬🇧"),
+        ("fr", "French", "🇫🇷"),
+        ("es", "Spanish", "🇪🇸"),
+        ("de", "German", "🇩🇪"),
+        ("it", "Italian", "🇮🇹"),
+        ("pt", "Portuguese", "🇵🇹"),
+        ("zh", "Chinese", "🇨🇳"),
+        ("ja", "Japanese", "🇯🇵"),
+        ("ko", "Korean", "🇰🇷"),
+        ("ar", "Arabic", "🇸🇦"),
+        ("ru", "Russian", "🇷🇺"),
+        ("hi", "Hindi", "🇮🇳"),
+        ("nl", "Dutch", "🇳🇱"),
+        ("sv", "Swedish", "🇸🇪"),
+        ("no", "Norwegian", "🇳🇴"),
+        ("da", "Danish", "🇩🇰"),
+        ("fi", "Finnish", "🇫🇮"),
+        ("pl", "Polish", "🇵🇱"),
+        ("tr", "Turkish", "🇹🇷"),
+        ("he", "Hebrew", "🇮🇱")
+    ]
 
     var body: some View {
         VStack(spacing: 8) {
@@ -157,6 +182,43 @@ struct RecordingRow: View {
                             .buttonStyle(.plain)
                             .help("Export transcription")
                         }
+                    }
+
+                    // Language selector (shown before transcription starts)
+                    if transcriptionText == nil && !isTranscribing && transcriptionError == nil {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Select language for transcription:")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+
+                            HStack(spacing: 8) {
+                                Picker("Language", selection: $selectedLanguage) {
+                                    ForEach(sortedLanguages(), id: \.code) { language in
+                                        Text("\(language.flag) \(language.name)")
+                                            .tag(language.code)
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                .frame(width: 180)
+
+                                Button(action: {
+                                    if !selectedLanguage.isEmpty {
+                                        Task {
+                                            await generateTranscription()
+                                        }
+                                    }
+                                }) {
+                                    Text("Start Transcription")
+                                        .font(.caption)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.small)
+                                .disabled(selectedLanguage.isEmpty)
+                            }
+                        }
+                        .padding(10)
+                        .background(Color.blue.opacity(0.05))
+                        .cornerRadius(6)
                     }
 
                     if let text = transcriptionText {
@@ -442,16 +504,39 @@ struct RecordingRow: View {
         }
     }
 
+    // Sort languages with favorites first
+    private func sortedLanguages() -> [(code: String, name: String, flag: String)] {
+        let favoriteLanguages = UserDefaults.standard.string(forKey: "transcriptionLanguages") ?? "en"
+        let favoriteCodes = favoriteLanguages.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }
+
+        var sorted: [(code: String, name: String, flag: String)] = []
+
+        // Add favorites first
+        for favoriteCode in favoriteCodes {
+            if let language = availableLanguages.first(where: { $0.code == favoriteCode }) {
+                sorted.append(language)
+            }
+        }
+
+        // Add remaining languages alphabetically
+        let remaining = availableLanguages.filter { lang in
+            !sorted.contains(where: { $0.code == lang.code })
+        }
+        sorted.append(contentsOf: remaining.sorted { $0.name < $1.name })
+
+        return sorted
+    }
+
     private func toggleTranscription() {
         withAnimation {
             showTranscription.toggle()
         }
 
-        // If opening and no transcription exists, generate one
-        if showTranscription && transcriptionText == nil && !isTranscribing {
-            Task {
-                await generateTranscription()
-            }
+        // Initialize with first favorite language when opening
+        if showTranscription && selectedLanguage.isEmpty {
+            let favoriteLanguages = UserDefaults.standard.string(forKey: "transcriptionLanguages") ?? "en"
+            let favoriteCodes = favoriteLanguages.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }
+            selectedLanguage = favoriteCodes.first ?? "en"
         }
     }
 
@@ -473,7 +558,7 @@ struct RecordingRow: View {
                 }
             }
 
-            let text = try await transcriptionService.transcribe(audioURL: url)
+            let text = try await transcriptionService.transcribe(audioURL: url, languageCode: selectedLanguage)
 
             // Stop the timer
             await MainActor.run {
@@ -599,7 +684,7 @@ struct RecordingRow: View {
         savePanel.begin { response in
             if response == .OK, let destinationURL = savePanel.url {
                 do {
-                    let text = summary.formattedText()
+                    let text = summary.summary
                     try text.write(to: destinationURL, atomically: true, encoding: .utf8)
                     print("✅ Summary exported to: \(destinationURL.path)")
                 } catch {

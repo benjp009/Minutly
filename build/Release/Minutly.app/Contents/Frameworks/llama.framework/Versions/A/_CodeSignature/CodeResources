@@ -4,104 +4,18 @@
 <dict>
 	<key>files</key>
 	<dict>
-		<key>Resources/AppIcon.icns</key>
+		<key>Resources/Info.plist</key>
 		<data>
-		dD4hY1uCwB4Ei1I7wV8Lrqn0Rgs=
-		</data>
-		<key>Resources/Assets.car</key>
-		<data>
-		XzRPACcHBz9fd25hHPUK1lnPsbY=
-		</data>
-		<key>Resources/plan.css</key>
-		<data>
-		kXjf8tP/vgr5nOg2IuM09qV17PI=
-		</data>
-		<key>Resources/plan.html</key>
-		<data>
-		KI/CloVInifxK9uFvlAgmNFUfVY=
-		</data>
-		<key>Resources/sidemenu.css</key>
-		<data>
-		I1WgwvdcH0XLXVSoS41SeIDdWOw=
-		</data>
-		<key>Resources/sidemenu.html</key>
-		<data>
-		85qZqYAe6/dsYgF5HS9BeUFgplw=
-		</data>
-		<key>Resources/splash.css</key>
-		<data>
-		oBi0wUQ7o+b7czdh9XusXkRRo8M=
-		</data>
-		<key>Resources/splash.html</key>
-		<data>
-		bDHgPD4zYd1E3l3AfGC81U7ww+s=
+		TKcCMoMv25EhV9PqUd3TA8jkHfg=
 		</data>
 	</dict>
 	<key>files2</key>
 	<dict>
-		<key>Frameworks/llama.framework</key>
-		<dict>
-			<key>cdhash</key>
-			<data>
-			tba3l/twJuHf9HxVjNlS9E0rgeo=
-			</data>
-			<key>requirement</key>
-			<string>cdhash H"b5b6b797fb7026e1dff47c558cd952f44d2b81ea" or cdhash H"2968557b83cc12a6665f95979273c7a27eb0a6fc"</string>
-		</dict>
-		<key>Resources/AppIcon.icns</key>
+		<key>Resources/Info.plist</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			GzPu8uF5qQMBDu4X2uP4i5fBVAv06mDKXMnbtpSjgs4=
-			</data>
-		</dict>
-		<key>Resources/Assets.car</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			AIfXwioDqJKDpO7rW3jh86CXmMmet1c5esqi7Jsmmjo=
-			</data>
-		</dict>
-		<key>Resources/plan.css</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			m1Vtxtfl2VzPSvpPFQ9k2lcNQHMxKcnug33261kUSxo=
-			</data>
-		</dict>
-		<key>Resources/plan.html</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			RwXKyyVH9sd+INlkidOkTmOds1xRJbMucww7CDfD4NM=
-			</data>
-		</dict>
-		<key>Resources/sidemenu.css</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			NSSXVEG+zJNAR1VmlEXU5k3pm0S1Rm9ErkvzySHNaOc=
-			</data>
-		</dict>
-		<key>Resources/sidemenu.html</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			IPO4THqBc9OHRgdTfw629MbBEvy1oDi5M1aFyyM6jnY=
-			</data>
-		</dict>
-		<key>Resources/splash.css</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			SBD8W3OPj/7k5+DWGoroPx3HTA/iroUtUeGWEzo8DZs=
-			</data>
-		</dict>
-		<key>Resources/splash.html</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			ToyyhmS8qv4D7K3jXVCGPUvRI3SAuKpMOuzAlqP5sJk=
+			UYycuqlb+iHyrK0B/h0pvYpr39eXAhorOd48UUW0isA=
 			</data>
 		</dict>
 	</dict>

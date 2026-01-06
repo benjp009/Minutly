@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Combine
+import UserNotifications
 
 // Helper class to manage app state
 @MainActor
@@ -49,7 +50,6 @@ class AppState: ObservableObject {
 struct MinutlyApp: App {
     @StateObject private var appState = AppState()
     @AppStorage("enableMenuBarMode") private var enableMenuBarMode = false
-    @AppStorage("onboardingCompleted") private var onboardingCompleted = false
     @State private var showSplashScreen = true
 
     var body: some Scene {
@@ -60,19 +60,12 @@ struct MinutlyApp: App {
                     .onAppear {
                         setupApp()
                     }
-                    .opacity(showSplashScreen ? 0 : 1) // Show after splash screen (onboarding disabled)
-
-                if false { // Onboarding temporarily disabled
-                    OnboardingContainerView()
-                        .environmentObject(appState.recorder)
-                        .transition(.opacity)
-                        .zIndex(2)
-                }
+                    .opacity(showSplashScreen ? 0 : 1)
 
                 if showSplashScreen {
                     SplashScreenView()
                         .transition(.opacity)
-                        .zIndex(3)
+                        .zIndex(2)
                 }
             }
             .onAppear {
@@ -96,6 +89,13 @@ struct MinutlyApp: App {
     }
 
     private func setupApp() {
+        // Migration: Clean up old cloud-related data
+        migrateUserDefaults()
+        cleanupKeychain()
+
+        // Request notification permission for meeting reminders
+        requestNotificationPermission()
+
         // Connect recorder to menu bar controller
         appState.menuBarController.setRecorder(appState.recorder)
 
@@ -108,6 +108,52 @@ struct MinutlyApp: App {
         // Enable full-screen support
         if let window = NSApp.windows.first {
             window.collectionBehavior.insert(.fullScreenPrimary)
+        }
+    }
+
+    // MARK: - Migration
+
+    private func migrateUserDefaults() {
+        let defaults = UserDefaults.standard
+
+        // Remove deprecated cloud-related keys
+        let keysToRemove = [
+            "transcriptionProvider",
+            "summaryModel",
+            "transcriptionAPIConfigured",
+            "summarizationAPIConfigured",
+            "onboardingCompleted",
+            "currentOnboardingPage"
+        ]
+
+        for key in keysToRemove {
+            if defaults.object(forKey: key) != nil {
+                defaults.removeObject(forKey: key)
+                print("🗑️ Removed deprecated key: \(key)")
+            }
+        }
+
+        print("✅ Migrated UserDefaults (removed cloud keys)")
+    }
+
+    private func cleanupKeychain() {
+        // Remove cloud API keys (keep encryption_key for recordings)
+        try? KeychainService.shared.deleteAPIKey(for: "assemblyai")
+        try? KeychainService.shared.deleteAPIKey(for: "openai")
+
+        print("✅ Cleaned up cloud API keys from Keychain")
+    }
+
+    // MARK: - Permissions
+
+    private func requestNotificationPermission() {
+        let center = UNUserNotificationCenter.current()
+        center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+            if granted {
+                print("✅ Notification permission granted")
+            } else {
+                print("⚠️ Notification permission denied - meeting reminders will not work")
+            }
         }
     }
 }

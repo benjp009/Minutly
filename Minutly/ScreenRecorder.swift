@@ -620,14 +620,14 @@ class ScreenRecorder: NSObject, ObservableObject {
             
             print("🎤 Initializing microphone recorder...")
             print("   Mic temp file: \(micTempURL?.path ?? "nil")")
-            
+
             do {
                 if let micURL = micTempURL {
                     // Remove existing mic file if any
                     if FileManager.default.fileExists(atPath: micURL.path) {
                         try FileManager.default.removeItem(at: micURL)
                     }
-                    
+
                     micRecorder = try AVAudioRecorder(url: micURL, settings: micSettings)
                     micRecorder?.delegate = self
                     print("   📝 Mic recorder created")

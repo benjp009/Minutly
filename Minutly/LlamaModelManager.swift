@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import Combine
 import CryptoKit
 
 class LlamaModelManager: ObservableObject {
@@ -33,9 +34,9 @@ class LlamaModelManager: ObservableObject {
         var downloadURL: String {
             switch self {
             case .llama1B:
-                return "https://huggingface.co/TheBloke/Llama-3.2-1B-Instruct-GGUF/resolve/main/llama-3.2-1b-instruct.Q4_K_M.gguf"
+                return "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf"
             case .llama3B:
-                return "https://huggingface.co/TheBloke/Llama-3.2-3B-Instruct-GGUF/resolve/main/llama-3.2-3b-instruct.Q4_K_M.gguf"
+                return "https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf"
             }
         }
 
@@ -240,28 +241,70 @@ class LlamaModelManager: ObservableObject {
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 300  // 5 minutes timeout
         configuration.timeoutIntervalForResource = 3600  // 1 hour for large files
+        configuration.waitsForConnectivity = true
 
         let session = URLSession(configuration: configuration,
                                  delegate: nil,
                                  delegateQueue: nil)
 
-        // Download the file
-        let (tempURL, response) = try await session.download(from: url)
+        print("📥 Downloading from: \(url.absoluteString)")
 
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
-            throw LlamaError.networkError("Invalid response from server")
+        do {
+            // Download the file
+            let (tempURL, response) = try await session.download(from: url)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw LlamaError.networkError("No HTTP response received")
+            }
+
+            print("📡 HTTP Status: \(httpResponse.statusCode)")
+
+            guard httpResponse.statusCode == 200 else {
+                let statusMessage: String
+                switch httpResponse.statusCode {
+                case 404:
+                    statusMessage = "Model file not found on server (404). The download URL may be incorrect."
+                case 403:
+                    statusMessage = "Access denied (403). Server may be blocking the download."
+                case 500...599:
+                    statusMessage = "Server error (\(httpResponse.statusCode)). Please try again later."
+                default:
+                    statusMessage = "Server returned status code \(httpResponse.statusCode)"
+                }
+                throw LlamaError.networkError(statusMessage)
+            }
+
+            // Move to final destination
+            let fileManager = FileManager.default
+            if fileManager.fileExists(atPath: destinationURL.path) {
+                try fileManager.removeItem(at: destinationURL)
+            }
+
+            try fileManager.moveItem(at: tempURL, to: destinationURL)
+
+            print("✅ File saved to: \(destinationURL.path)")
+        } catch let error as LlamaError {
+            throw error
+        } catch let urlError as URLError {
+            let errorMessage: String
+            switch urlError.code {
+            case .notConnectedToInternet:
+                errorMessage = "No internet connection. Please check your network."
+            case .timedOut:
+                errorMessage = "Download timed out. The file is large, please ensure stable internet connection."
+            case .cannotFindHost, .cannotConnectToHost:
+                errorMessage = "Cannot reach download server. Please check your internet connection."
+            case .networkConnectionLost:
+                errorMessage = "Network connection was lost. Please try again."
+            case .cancelled:
+                errorMessage = "Download was cancelled."
+            default:
+                errorMessage = "Network error: \(urlError.localizedDescription)"
+            }
+            throw LlamaError.networkError(errorMessage)
+        } catch {
+            throw LlamaError.downloadFailed("Unexpected error: \(error.localizedDescription)")
         }
-
-        // Move to final destination
-        let fileManager = FileManager.default
-        if fileManager.fileExists(atPath: destinationURL.path) {
-            try fileManager.removeItem(at: destinationURL)
-        }
-
-        try fileManager.moveItem(at: tempURL, to: destinationURL)
-
-        print("✅ File saved to: \(destinationURL.path)")
     }
 
     /// Cancel ongoing download

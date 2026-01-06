@@ -34,15 +34,31 @@ class LocalLlamaSummarizationService {
         try validateTranscriptionLength(transcription)
 
         let estimatedTokens = estimateTokens(transcription)
-        onProgress(0.1, "📊 Analyzing \(estimatedTokens) tokens...")
+        onProgress(0.05, "📊 Analyzing \(estimatedTokens) tokens...")
 
         // Ensure model is downloaded and initialized
         if !modelManager.isModelDownloaded() {
-            onProgress(0.2, "📥 Downloading AI model...")
+            let modelName = modelManager.selectModelForDevice().displayName
+            onProgress(0.1, "📥 Downloading \(modelName) (~800 MB)...")
+
+            // Monitor download progress and map it to 10-50% of total progress
+            let downloadTask = Task {
+                while modelManager.isDownloading {
+                    let downloadProgress = await MainActor.run { modelManager.downloadProgress }
+                    // Map download progress (0-1) to overall progress (0.1-0.5)
+                    let mappedProgress = 0.1 + (downloadProgress * 0.4)
+                    let percentage = Int(downloadProgress * 100)
+                    onProgress(mappedProgress, "📥 Downloading model... \(percentage)%")
+                    try? await Task.sleep(nanoseconds: 500_000_000)  // Update every 0.5s
+                }
+            }
+
             try await modelManager.downloadModel()
+            downloadTask.cancel()
+            onProgress(0.5, "✅ Model downloaded successfully")
         }
 
-        onProgress(0.3, "🔄 Loading model...")
+        onProgress(0.55, "🔄 Loading model...")
 
         // TODO: Initialize Llama context when llama.swift is integrated
         // try await initializeLlamaContext()
@@ -65,9 +81,9 @@ class LocalLlamaSummarizationService {
         print("✅ Using summary type: \(type)")
 
         // Format prompt for Llama instruction format
-        let llamaPrompt = formatPromptForLlama(systemPrompt: systemPrompt, userPrompt: userPrompt)
+        _ = formatPromptForLlama(systemPrompt: systemPrompt, userPrompt: userPrompt)
 
-        onProgress(0.4, "🧠 Generating summary with local AI...")
+        onProgress(0.6, "🧠 Generating summary with local AI...")
 
         // TODO: Generate completion with llama.swift
         // For now, return a placeholder that shows the structure works
@@ -130,48 +146,50 @@ class LocalLlamaSummarizationService {
         transcription: String,
         onProgress: @escaping (Double, String) -> Void
     ) async throws -> ConversationSummary {
-        // Simulate processing time
-        onProgress(0.5, "🔄 Processing...")
+        // Simulate processing time (60-100% of progress)
+        onProgress(0.7, "🔄 Processing transcription...")
         try await Task.sleep(nanoseconds: 500_000_000)  // 0.5 seconds
 
-        onProgress(0.7, "📝 Extracting insights...")
+        onProgress(0.8, "📝 Extracting key points...")
         try await Task.sleep(nanoseconds: 500_000_000)
 
-        onProgress(0.9, "✅ Finalizing...")
+        onProgress(0.95, "✅ Finalizing summary...")
         try await Task.sleep(nanoseconds: 300_000_000)
 
-        // Return a basic placeholder summary
+        // Return a basic rule-based summary
         // TODO: Replace with actual Llama-generated summary
-        let wordCount = transcription.components(separatedBy: .whitespacesAndNewlines).count
+        let sentences = transcription.components(separatedBy: CharacterSet(charactersIn: ".!?"))
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        let wordCount = transcription.components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }.count
+
+        // Extract first few sentences as summary
+        let summaryText = sentences.prefix(3).joined(separator: ". ") + (sentences.count > 3 ? "." : "")
+
+        // Simple keyword extraction for tasks
+        let taskKeywords = ["todo", "task", "action", "need to", "should", "must", "have to", "going to"]
+        let potentialTasks = sentences.filter { sentence in
+            let lower = sentence.lowercased()
+            return taskKeywords.contains(where: { lower.contains($0) })
+        }
+
+        // Generate tasks from potential task sentences
+        var tasks: [ConversationSummary.Task] = []
+        for (index, taskSentence) in potentialTasks.prefix(5).enumerated() {
+            tasks.append(ConversationSummary.Task(
+                task: taskSentence,
+                owner: "",
+                deadline: "",
+                dependencies: "",
+                priority: index == 0 ? "high" : "medium"
+            ))
+        }
 
         return ConversationSummary(
-            summary: """
-            📝 Local AI Summary (Placeholder)
-
-            This is a placeholder summary generated while Llama integration is in progress.
-
-            Transcription length: \(wordCount) words
-            Device: \(modelManager.isIntelMac ? "Intel Mac" : "Apple Silicon")
-            Model: \(modelManager.currentModel?.displayName ?? "Not loaded")
-
-            Once llama.swift package is integrated, this will be replaced with actual AI-generated summaries using the local Llama model.
-            """,
-            tasks: [
-                ConversationSummary.Task(
-                    task: "Complete llama.swift integration",
-                    owner: "Development team",
-                    deadline: "Week 1",
-                    dependencies: "Package dependency added",
-                    priority: "high"
-                ),
-                ConversationSummary.Task(
-                    task: "Test local AI summarization",
-                    owner: "QA team",
-                    deadline: "Week 2",
-                    dependencies: "Llama integration complete",
-                    priority: "high"
-                )
-            ]
+            summary: summaryText.isEmpty ? "No summary available - transcription is too short." : summaryText,
+            tasks: tasks.isEmpty ? [] : tasks
         )
     }
 

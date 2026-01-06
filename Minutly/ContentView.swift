@@ -68,7 +68,7 @@ struct ContentView: View {
             showSettings = true
         }
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsAPI)) { _ in
-            settingsInitialTab = .api
+            settingsInitialTab = .general
             showSettings = true
         }
         .onChange(of: recorder.recordings) { _, newList in
@@ -76,6 +76,14 @@ struct ContentView: View {
             if !newList.contains(selected) {
                 selectedRecordingURL = nil
                 showWelcome = true
+            }
+        }
+        .onChange(of: recorder.lastRecordingPath) { _, newPath in
+            // Auto-select the latest recording when it finishes
+            if let path = newPath, let url = URL(string: "file://\(path)") {
+                selectedRecordingURL = url
+                showWelcome = false
+                print("✅ Auto-selected latest recording: \(url.lastPathComponent)")
             }
         }
         .sheet(isPresented: $showSettings) {
@@ -492,6 +500,31 @@ private struct RecordingDetailView: View {
     @State private var summary: ConversationSummary?
     @State private var isSummarizing = false
     @State private var summaryError: String?
+    @State private var selectedLanguage: String = ""
+
+    // Available languages for transcription
+    private let availableLanguages: [(code: String, name: String, flag: String)] = [
+        ("en", "English", "🇬🇧"),
+        ("fr", "French", "🇫🇷"),
+        ("es", "Spanish", "🇪🇸"),
+        ("de", "German", "🇩🇪"),
+        ("it", "Italian", "🇮🇹"),
+        ("pt", "Portuguese", "🇵🇹"),
+        ("zh", "Chinese", "🇨🇳"),
+        ("ja", "Japanese", "🇯🇵"),
+        ("ko", "Korean", "🇰🇷"),
+        ("ar", "Arabic", "🇸🇦"),
+        ("ru", "Russian", "🇷🇺"),
+        ("hi", "Hindi", "🇮🇳"),
+        ("nl", "Dutch", "🇳🇱"),
+        ("sv", "Swedish", "🇸🇪"),
+        ("no", "Norwegian", "🇳🇴"),
+        ("da", "Danish", "🇩🇰"),
+        ("fi", "Finnish", "🇫🇮"),
+        ("pl", "Polish", "🇵🇱"),
+        ("tr", "Turkish", "🇹🇷"),
+        ("he", "Hebrew", "🇮🇱")
+    ]
 
     private enum DetailTab: String, CaseIterable, Identifiable {
         case transcript = "Transcript"
@@ -536,6 +569,13 @@ private struct RecordingDetailView: View {
             transcriptionText = transcriptionService.loadTranscription(for: url)
             summary = transcriptionService.loadSummary(for: url)
             editedName = cleanName(from: url)
+
+            // Initialize with first favorite language
+            if selectedLanguage.isEmpty {
+                let favoriteLanguages = UserDefaults.standard.string(forKey: "transcriptionLanguages") ?? "en"
+                let favoriteCodes = favoriteLanguages.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }
+                selectedLanguage = favoriteCodes.first ?? "en"
+            }
         }
         .onChange(of: url) { _, newURL in
             stopPlayback()
@@ -664,17 +704,36 @@ private struct RecordingDetailView: View {
                 .background(Color.gray.opacity(0.05))
                 .cornerRadius(8)
             } else {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("No transcript yet.")
-                        .font(.headline)
+                VStack(alignment: .leading, spacing: 16) {
+                    // Top row with "No transcript yet" and language picker
+                    HStack {
+                        Text("No transcript yet.")
+                            .font(.headline)
+
+                        Spacer()
+
+                        Picker("Language", selection: $selectedLanguage) {
+                            ForEach(sortedLanguages(), id: \.code) { language in
+                                Text("\(language.flag) \(language.name)")
+                                    .tag(language.code)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(width: 200)
+                    }
+
                     if let error = transcriptionError {
                         Text(error)
                             .font(.footnote)
                             .foregroundStyle(.red)
                     }
-                    HStack(spacing: 12) {
+
+                    // Transcribe button
+                    HStack {
                         Button {
-                            Task { await generateTranscription() }
+                            if !selectedLanguage.isEmpty {
+                                Task { await generateTranscription() }
+                            }
                         } label: {
                             Label("Transcribe Recording", systemImage: "text.quote")
                                 .font(.headline)
@@ -684,6 +743,7 @@ private struct RecordingDetailView: View {
                                 .cornerRadius(10)
                         }
                         .buttonStyle(.plain)
+                        .disabled(selectedLanguage.isEmpty)
 
                         // Show Settings button if error is API key related
                         if let error = transcriptionError, error.contains("API key") {
@@ -716,6 +776,10 @@ private struct RecordingDetailView: View {
                     Text("Summary")
                         .font(.headline)
                     Spacer()
+                    Button("Delete") {
+                        deleteSummary()
+                    }
+                    .foregroundColor(.red)
                     Button("Copy") {
                         copySummaryToClipboard(summary)
                     }
@@ -977,7 +1041,7 @@ private struct RecordingDetailView: View {
         savePanel.begin { response in
             if response == .OK, let destinationURL = savePanel.url {
                 do {
-                    let text = summary.formattedText()
+                    let text = summary.summary
                     try text.write(to: destinationURL, atomically: true, encoding: .utf8)
                 } catch {
                     print("Failed to export summary: \(error)")
@@ -987,9 +1051,32 @@ private struct RecordingDetailView: View {
     }
 
     private func copySummaryToClipboard(_ summary: ConversationSummary) {
-        let text = summary.formattedText()
+        let text = summary.summary
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
+    }
+
+    // Sort languages with favorites first
+    private func sortedLanguages() -> [(code: String, name: String, flag: String)] {
+        let favoriteLanguages = UserDefaults.standard.string(forKey: "transcriptionLanguages") ?? "en"
+        let favoriteCodes = favoriteLanguages.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }
+
+        var sorted: [(code: String, name: String, flag: String)] = []
+
+        // Add favorites first
+        for favoriteCode in favoriteCodes {
+            if let language = availableLanguages.first(where: { $0.code == favoriteCode }) {
+                sorted.append(language)
+            }
+        }
+
+        // Add remaining languages alphabetically
+        let remaining = availableLanguages.filter { lang in
+            !sorted.contains(where: { $0.code == lang.code })
+        }
+        sorted.append(contentsOf: remaining.sorted { $0.name < $1.name })
+
+        return sorted
     }
 
     private func generateTranscription() async {
@@ -1006,7 +1093,7 @@ private struct RecordingDetailView: View {
                 }
             }
 
-            let text = try await transcriptionService.transcribe(audioURL: url)
+            let text = try await transcriptionService.transcribe(audioURL: url, languageCode: selectedLanguage)
 
             await MainActor.run {
                 progressTimer.invalidate()
@@ -1056,6 +1143,18 @@ private struct RecordingDetailView: View {
 
         await MainActor.run {
             isSummarizing = false
+        }
+    }
+
+    private func deleteSummary() {
+        do {
+            try transcriptionService.deleteSummary(for: url)
+            summary = nil
+            summaryError = nil
+            print("✅ Summary deleted successfully")
+        } catch {
+            summaryError = "Failed to delete summary: \(error.localizedDescription)"
+            print("❌ Error deleting summary: \(error.localizedDescription)")
         }
     }
 

@@ -137,15 +137,11 @@ struct MinutlyApp: App {
     }
 
     private func cleanupKeychain() {
-        do {
-            // Remove cloud API keys (keep encryption_key for recordings)
-            try? KeychainService.shared.deleteAPIKey(for: "assemblyai")
-            try? KeychainService.shared.deleteAPIKey(for: "openai")
+        // Remove cloud API keys (keep encryption_key for recordings)
+        try? KeychainService.shared.deleteAPIKey(for: "assemblyai")
+        try? KeychainService.shared.deleteAPIKey(for: "openai")
 
-            print("✅ Cleaned up cloud API keys from Keychain")
-        } catch {
-            print("⚠️ Keychain cleanup warning: \(error)")
-        }
+        print("✅ Cleaned up cloud API keys from Keychain")
     }
 
     // MARK: - Permissions

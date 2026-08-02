@@ -15,7 +15,6 @@ class TranscriptionService {
     var errorMessage: String?
     var statusMessage: String = ""
 
-    private var recognizer: SFSpeechRecognizer?
     private var assemblyAIService: AssemblyAIService?
     private var openAIService: OpenAISummarizationService?
     private var openAITranscriptionService: OpenAITranscriptionService?
@@ -23,9 +22,6 @@ class TranscriptionService {
     private let auditLogger = AuditLogger.shared
 
     init() {
-        // Initialize recognizer based on language preference
-        recognizer = Self.createRecognizer()
-
         // Initialize AssemblyAI if API key is available
         do {
             if let apiKey = try KeychainService.shared.retrieveAPIKey(for: "assemblyai"), !apiKey.isEmpty {
@@ -209,7 +205,8 @@ class TranscriptionService {
             actualAudioURL = audioURL
         }
 
-        let provider = UserDefaults.standard.string(forKey: "transcriptionProvider") ?? "apple"
+        // Parakeet is the default: local, free, no key, and no 1-minute ceiling like Apple Speech
+        let provider = UserDefaults.standard.string(forKey: "transcriptionProvider") ?? "parakeet"
 
         do {
             let result: String
@@ -217,6 +214,8 @@ class TranscriptionService {
                 result = try await transcribeWithAssemblyAI(audioURL: actualAudioURL)
             } else if provider == "openai" {
                 result = try await transcribeWithOpenAI(audioURL: actualAudioURL)
+            } else if provider == "parakeet" {
+                result = try await transcribeWithParakeet(audioURL: actualAudioURL, sidecarURL: audioURL)
             } else {
                 result = try await transcribeWithApple(audioURL: actualAudioURL)
             }
@@ -354,6 +353,32 @@ class TranscriptionService {
         }
     }
 
+    // Transcribe with Parakeet TDT v3 (local, on-device)
+    private func transcribeWithParakeet(audioURL: URL, sidecarURL: URL) async throws -> String {
+        print("🎙️ Using Parakeet TDT v3 (local) for transcription")
+
+        let service = await ParakeetTranscriptionService.shared
+        let downloaded = await service.isDownloaded
+
+        isTranscribing = true
+        progress = downloaded ? 0.5 : 0.0
+        statusMessage = downloaded ? "🧠 Transcribing on-device..." : "⬇️ Downloading Parakeet model (~600 MB)..."
+        errorMessage = nil
+
+        defer { isTranscribing = false }
+
+        do {
+            // ponytail: no fine-grained progress; ~190x realtime, an hour of audio finishes in ~20s.
+            let transcript = try await service.transcribe(audioURL: audioURL, sidecarURL: sidecarURL)
+            progress = 1.0
+            return transcript
+        } catch {
+            print("❌ Parakeet transcription failed: \(error.localizedDescription)")
+            errorMessage = "Parakeet failed: \(error.localizedDescription)"
+            throw error
+        }
+    }
+
     // Transcribe with Apple Speech
     private func transcribeWithApple(audioURL: URL) async throws -> String {
         print("🎙️ Starting transcription for: \(audioURL.lastPathComponent)")
@@ -373,8 +398,8 @@ class TranscriptionService {
             self.statusMessage = "✅ Permission granted"
         }
 
-        // Check if recognizer is available
-        guard let recognizer = recognizer, recognizer.isAvailable else {
+        // Build the recognizer per run so a language change in Settings takes effect immediately
+        guard let recognizer = Self.createRecognizer(), recognizer.isAvailable else {
             print("❌ Speech recognizer not available")
             throw TranscriptionError.recognizerUnavailable
         }
@@ -404,7 +429,13 @@ class TranscriptionService {
             // Create recognition request
             let request = SFSpeechURLRecognitionRequest(url: audioURL)
             request.shouldReportPartialResults = true
-            request.requiresOnDeviceRecognition = false // Use cloud for better accuracy if available
+            // Server-side recognition caps at ~1 minute of audio; meetings are far longer.
+            // ponytail: on-device only. If the locale's model isn't downloaded we fail loudly
+            // rather than silently truncating to the first minute.
+            guard recognizer.supportsOnDeviceRecognition else {
+                throw TranscriptionError.onDeviceModelMissing(recognizer.locale.identifier)
+            }
+            request.requiresOnDeviceRecognition = true
 
             // Add context strings to improve recognition for meetings/conversations
             request.contextualStrings = ["réunion", "projet", "discussion", "équipe", "client"]
@@ -458,12 +489,10 @@ class TranscriptionService {
                         print("❌ Recognition error: \(error.localizedDescription)")
                         timeoutTimer.invalidate()
 
-                        // If we have partial results, return them instead of erroring
-                        if !finalTranscription.isEmpty && !hasResumed {
-                            print("⚠️ Returning partial transcription due to error")
-                            hasResumed = true
-                            continuation.resume(returning: finalTranscription)
-                        } else if !hasResumed {
+                        // ponytail: partial results are discarded, not returned as success — a
+                        // truncated transcript that looks complete is worse than a visible failure.
+                        // Surface them again only if a real "95% then died" case shows up.
+                        if !hasResumed {
                             hasResumed = true
                             continuation.resume(throwing: error)
                         }
@@ -572,6 +601,9 @@ class TranscriptionService {
         if fileManager.fileExists(atPath: transcriptionURL.path) {
             try fileManager.removeItem(at: transcriptionURL)
         }
+
+        // The unnamed-speaker samples only make sense against this transcript.
+        SpeakerSampleStore.delete(for: audioURL)
     }
 
     // MARK: - Summary Persistence
@@ -647,6 +679,7 @@ enum TranscriptionError: LocalizedError {
     case assemblyAIKeyMissing
     case openAIKeyMissing
     case encryptionError(String)
+    case onDeviceModelMissing(String)
 
     var errorDescription: String? {
         switch self {
@@ -664,6 +697,8 @@ enum TranscriptionError: LocalizedError {
             return "OpenAI API key not configured. Please add your API key in Settings to enable summarization."
         case .encryptionError(let message):
             return "Failed to decrypt audio file: \(message)"
+        case .onDeviceModelMissing(let locale):
+            return "Offline speech recognition for \(locale) isn't installed, and online recognition can only handle 1 minute of audio. Install the language in System Settings > Keyboard > Dictation, or switch to AssemblyAI/OpenAI in Settings."
         }
     }
 }

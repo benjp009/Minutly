@@ -33,6 +33,9 @@ struct RecordingRow: View {
     @State private var isSummarizing = false
     @State private var summaryError: String?
     @State private var showDeleteConfirmation = false
+    @State private var speakerSamples: [SpeakerSample] = []
+    @State private var speakerNames: [String: String] = [:]
+    @State private var samplePlayer: AVAudioPlayer?
 
     var body: some View {
         VStack(spacing: 8) {
@@ -170,6 +173,8 @@ struct RecordingRow: View {
                         .padding(8)
                         .background(Color.white.opacity(0.5))
                         .cornerRadius(6)
+
+                        unnamedSpeakersBlock
                     } else if isTranscribing {
                         VStack(spacing: 10) {
                             HStack {
@@ -229,18 +234,18 @@ struct RecordingRow: View {
                                 .buttonStyle(.borderedProminent)
                                 .controlSize(.small)
 
-                                // Show Settings button if error is API key related
-                                if error.contains("API key") {
-                                    Button(action: {
-                                        // Open Settings window to API tab
-                                        NotificationCenter.default.post(name: .openSettingsAPI, object: nil)
-                                    }) {
+                                // Every transcription error is fixed in Settings, so always offer the door
+                                Button(action: {
+                                    NotificationCenter.default.post(
+                                        name: error.contains("API key") ? .openSettingsAPI : .openSettings,
+                                        object: nil
+                                    )
+                                }) {
                                         Label("Open Settings", systemImage: "gear")
                                     }
-                                    .font(.caption)
-                                    .buttonStyle(.bordered)
-                                    .controlSize(.small)
-                                }
+                                .font(.caption)
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
                             }
                         }
                         .padding(8)
@@ -356,6 +361,7 @@ struct RecordingRow: View {
         .onAppear {
             // Load existing transcription if available
             transcriptionText = transcriptionService.loadTranscription(for: url)
+            speakerSamples = SpeakerSampleStore.load(for: url)
         }
         .alert("Delete Recording?", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) {}
@@ -485,6 +491,7 @@ struct RecordingRow: View {
             await MainActor.run {
                 transcriptionText = text
                 transcriptionProgress = 1.0
+                speakerSamples = SpeakerSampleStore.load(for: url)
             }
 
             // Save transcription to file
@@ -501,6 +508,99 @@ struct RecordingRow: View {
         await MainActor.run {
             isTranscribing = false
         }
+    }
+
+    // MARK: - Naming unknown voices
+
+    @ViewBuilder
+    private var unnamedSpeakersBlock: some View {
+        if !speakerSamples.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Who's speaking?")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
+                Text("Listen to each unknown voice and name it. Minutly remembers the voice and labels them automatically next time.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+
+                ForEach(speakerSamples) { sample in
+                    HStack(spacing: 8) {
+                        Button(action: { playSample(sample) }) {
+                            Image(systemName: "play.circle.fill")
+                                .foregroundStyle(.blue)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Play 5 seconds of Speaker \(sample.speakerId)")
+
+                        Text("Speaker \(sample.speakerId)")
+                            .font(.system(size: 12))
+                            .frame(width: 80, alignment: .leading)
+
+                        TextField("Name", text: Binding(
+                            get: { speakerNames[sample.speakerId] ?? "" },
+                            set: { speakerNames[sample.speakerId] = $0 }
+                        ))
+                        .textFieldStyle(.roundedBorder)
+                        .onSubmit { nameSpeaker(sample) }
+
+                        Button("Save") { nameSpeaker(sample) }
+                            .disabled((speakerNames[sample.speakerId] ?? "").trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+                }
+            }
+            .padding(8)
+            .background(Color.blue.opacity(0.06))
+            .cornerRadius(6)
+        }
+    }
+
+    /// Plays 5 seconds from the middle of the speaker's longest turn — the start of a
+    /// segment often catches the tail of someone else.
+    private func playSample(_ sample: SpeakerSample) {
+        stopPlayback()
+        do {
+            let data = url.pathExtension.lowercased() == "enc"
+                ? try EncryptionService.shared.decryptAudioFile(at: url)
+                : try Data(contentsOf: url)
+
+            let player = try AVAudioPlayer(data: data)
+            let clip = min(5.0, sample.endTime - sample.startTime)
+            let midpoint = (sample.startTime + sample.endTime) / 2
+            player.currentTime = max(sample.startTime, midpoint - clip / 2)
+            player.play()
+            samplePlayer = player
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + clip) {
+                // Guard against a newer sample having taken over in the meantime.
+                if samplePlayer === player { player.stop() }
+            }
+        } catch {
+            print("❌ Failed to play speaker sample: \(error.localizedDescription)")
+        }
+    }
+
+    private func nameSpeaker(_ sample: SpeakerSample) {
+        let name = (speakerNames[sample.speakerId] ?? "").trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return }
+
+        do {
+            try VoiceProfileStore.shared.enroll(name: name, embedding: sample.embedding)
+        } catch {
+            print("❌ Failed to save voice profile: \(error.localizedDescription)")
+            return
+        }
+
+        // Relabel this transcript in place; future ones get the name from the voice profile.
+        if let text = transcriptionText {
+            let updated = text.replacingOccurrences(of: "Speaker \(sample.speakerId):", with: "\(name):")
+            transcriptionText = updated
+            try? transcriptionService.saveTranscription(updated, for: url)
+        }
+
+        speakerSamples.removeAll { $0.speakerId == sample.speakerId }
+        speakerNames[sample.speakerId] = nil
+        SpeakerSampleStore.save(speakerSamples, for: url)
     }
 
     private func exportTranscription() {
@@ -535,6 +635,8 @@ struct RecordingRow: View {
         transcriptionText = nil
         transcriptionError = nil
         transcriptionProgress = 0.0
+        speakerSamples = []
+        speakerNames = [:]
 
         // Wait a bit before starting new transcription to ensure state is clean
         Task {

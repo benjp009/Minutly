@@ -13,11 +13,35 @@ import Combine
 class AppState: ObservableObject {
     let menuBarController = MenuBarController()
     let recorder: ScreenRecorder
+    let meetingDetector: MeetingAppDetector
     private var cancellables = Set<AnyCancellable>()
 
     init() {
-        self.recorder = ScreenRecorder()
+        let recorder = ScreenRecorder()
+        self.recorder = recorder
+        self.meetingDetector = MeetingAppDetector(recorder: recorder)
         setupObservers()
+        syncMeetingDetection()
+    }
+
+    /// Meeting detection lives here rather than in a view so it keeps running with the
+    /// window closed — which is exactly when a call starts.
+    private func syncMeetingDetection() {
+        applyMeetingDetectionSetting()
+
+        NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
+            .sink { [weak self] _ in
+                Task { @MainActor in self?.applyMeetingDetectionSetting() }
+            }
+            .store(in: &cancellables)
+    }
+
+    private func applyMeetingDetectionSetting() {
+        if UserDefaults.standard.bool(forKey: "enableMeetingDetection") {
+            meetingDetector.start()
+        } else {
+            meetingDetector.stop()
+        }
     }
 
     private func setupObservers() {

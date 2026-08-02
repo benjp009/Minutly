@@ -15,7 +15,12 @@ struct SummaryPromptTemplates {
     You are a professional meeting assistant. Analyze conversations and extract key information accurately.
     Never invent or infer information not explicitly stated in the conversation.
     Keep everything factual and business-oriented.
+    Always write the summary and all task fields in the same language as the conversation.
+    JSON keys stay in English; the "priority" value stays one of high/medium/low.
     """
+    // ponytail: language is inferred by the model from the transcript, not plumbed
+    // through from `transcriptionLanguages`. Pass the code explicitly if a user ever
+    // wants a summary in a different language than the recording.
 
     // MARK: - User Prompts by Type
 

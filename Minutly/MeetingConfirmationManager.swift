@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import EventKit
 
 // MARK: - Meeting Consent Record
 
@@ -155,21 +154,5 @@ class MeetingConfirmationManager {
     func getAuditTrail() -> [MeetingConsentRecord] {
         return consentRecords.values
             .sorted { $0.confirmationTime > $1.confirmationTime }
-    }
-}
-
-// MARK: - Calendar Event Extension
-
-extension EKEvent {
-    /// Generate a consistent ID for this event
-    var consistentID: String {
-        // Use event UID if available, otherwise create from title and date
-        if !eventIdentifier.isEmpty {
-            return eventIdentifier
-        }
-
-        let dateFormatter = ISO8601DateFormatter()
-        let dateString = dateFormatter.string(from: startDate)
-        return "\(title ?? "event")-\(dateString)".lowercased()
     }
 }

@@ -8,54 +8,28 @@
 
 import SwiftUI
 import AVFoundation
-import EventKit
 import AppKit
 import Combine
 
 struct ContentView: View {
     @EnvironmentObject var recorder: ScreenRecorder
-    @StateObject private var calendarMonitor = CalendarMonitorService()
     @State private var showSettings = false
     @State private var settingsInitialTab: SettingsView.SettingsSection = .general
-    @State private var showMeetingAlert = false
-    @State private var detectedMeeting: String = ""
     @State private var selectedRecordingURL: URL?
     @State private var showWelcome = true
     @State private var isSidebarCollapsed = false
     @State private var isRecordingsExpanded = true
-    @AppStorage("enableMeetingDetection") private var enableMeetingDetection = false
     @State private var durationCache: [URL: String] = [:]
 
     var body: some View {
         HStack(spacing: 0) {
             sidebar
-            Divider()
             mainContent
         }
         .frame(minWidth: 1000, minHeight: 650)
-        .background(Color.white)
+        .background(Theme.surfacePrimary)
         .onAppear {
             recorder.fetchRecordings()
-
-            calendarMonitor.onMeetingDetected = { meeting in
-                Task { @MainActor in
-                    let meetingTitle = meeting.title ?? "Untitled Meeting"
-                    detectedMeeting = meetingTitle
-                    showMeetingAlert = true
-                    await recorder.startPreBuffering(meetingTitle: meetingTitle)
-                }
-            }
-
-            calendarMonitor.setupNotificationActions()
-
-            if enableMeetingDetection {
-                Task {
-                    await calendarMonitor.startMonitoring()
-                }
-            }
-        }
-        .onDisappear {
-            calendarMonitor.stopMonitoring()
         }
         .onReceive(NotificationCenter.default.publisher(for: .openRecording)) { notification in
             if let url = notification.object as? URL {
@@ -81,242 +55,189 @@ struct ContentView: View {
         .sheet(isPresented: $showSettings) {
             SettingsView(initialSection: settingsInitialTab)
         }
-        .alert("Meeting Starting", isPresented: $showMeetingAlert) {
-            Button("Start Recording") {
-                Task {
-                    // Record user confirmation
-                    if let meeting = calendarMonitor.upcomingMeeting {
-                        let confirmationManager = MeetingConfirmationManager.shared
-                        do {
-                            try confirmationManager.recordMeetingConfirmation(
-                                eventID: meeting.consistentID,
-                                eventTitle: meeting.title ?? "Untitled",
-                                eventDate: meeting.startDate,
-                                userConfirmed: true,
-                                method: "manual"
-                            )
-                        } catch {
-                            print("Failed to record meeting confirmation: \(error.localizedDescription)")
-                        }
-                    }
-
-                    await recorder.confirmRecordingFromPreBuffer()
-                }
-            }
-            Button("Ignore", role: .cancel) {
-                Task {
-                    // Record user decline
-                    if let meeting = calendarMonitor.upcomingMeeting {
-                        let confirmationManager = MeetingConfirmationManager.shared
-                        do {
-                            try confirmationManager.recordMeetingConfirmation(
-                                eventID: meeting.consistentID,
-                                eventTitle: meeting.title ?? "Untitled",
-                                eventDate: meeting.startDate,
-                                userConfirmed: false,
-                                method: "manual"
-                            )
-                        } catch {
-                            print("Failed to record meeting decline: \(error.localizedDescription)")
-                        }
-                    }
-
-                    await recorder.cancelPreBuffer()
-                }
-            }
-        } message: {
-            Text("\(detectedMeeting)\n\nThe last 30 seconds will be included in the recording.")
-        }
     }
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Header with logo and collapse toggle
-            if isSidebarCollapsed {
-                VStack {
-                    Button(action: {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            isSidebarCollapsed.toggle()
-                        }
-                    }) {
-                        Image(systemName: "sidebar.left")
-                            .font(.system(size: 12))
-                            .foregroundStyle(Color(hex: "A9A9A9"))
-                            .rotationEffect(.degrees(90))
-                    }
-                    .buttonStyle(.plain)
-                }
-                .frame(height: 30)
-                .frame(maxWidth: .infinity)
-                .padding(.top, 10)
-            } else {
-                HStack(spacing: 8) {
-                    Image(nsImage: NSImage(named: "AppIcon") ?? NSImage())
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 20, height: 20)
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
+            // Header: logo + collapse toggle
+            HStack(spacing: 10) {
+                if !isSidebarCollapsed {
+                    Image(systemName: "mic.fill")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(Theme.accentPrimary)
+
+                    Text("Minutly")
+                        .font(Theme.heading(20, weight: .bold))
+                        .foregroundStyle(Theme.foregroundPrimary)
 
                     Spacer()
-
-                    Button(action: {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            isSidebarCollapsed.toggle()
-                        }
-                    }) {
-                        Image(systemName: "sidebar.left")
-                            .font(.system(size: 12))
-                            .foregroundStyle(Color(hex: "A9A9A9"))
-                    }
-                    .buttonStyle(.plain)
                 }
-                .frame(height: 30)
-                .padding(.horizontal, 10)
-                .padding(.top, 10)
+
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        isSidebarCollapsed.toggle()
+                    }
+                }) {
+                    Image(systemName: "sidebar.left")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Theme.foregroundSecondary)
+                        .frame(width: 24, height: 24)
+                }
+                .buttonStyle(.plain)
+                .frame(maxWidth: isSidebarCollapsed ? .infinity : nil)
             }
+            .padding(.horizontal, 16)
+            .padding(.top, 20)
+            .padding(.bottom, 24)
 
-            // New Recording Button
-            Button(action: startOrStopRecording) {
-                if isSidebarCollapsed {
-                    Image(systemName: recorder.isRecording ? "stop.circle.fill" : "mic.fill")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.black)
-                        .frame(height: 30)
-                        .frame(maxWidth: .infinity)
-                } else {
+            // Recordings section
+            if !isSidebarCollapsed {
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isRecordingsExpanded.toggle()
+                    }
+                }) {
                     HStack(spacing: 8) {
-                        Image(systemName: recorder.isRecording ? "stop.circle.fill" : "mic.fill")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.black)
+                        Image(systemName: "waveform")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(Theme.foregroundSecondary)
 
-                        Text(recorder.isRecording ? "Stop Recording" : "New recording")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.black)
+                        Text("Recordings")
+                            .font(Theme.body(12, weight: .semibold))
+                            .foregroundStyle(Theme.foregroundSecondary)
+                            .textCase(.uppercase)
+                            .tracking(0.5)
 
                         Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(Theme.foregroundMuted)
+                            .rotationEffect(.degrees(isRecordingsExpanded ? 90 : 0))
                     }
-                    .frame(height: 30)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 10)
-                    .background(recorder.isRecording ? Color.red.opacity(0.1) : Color.clear)
-                    .cornerRadius(6)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
+                    .contentShape(Rectangle())
                 }
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 10)
-            .padding(.top, 8)
+                .buttonStyle(.plain)
 
-            // Recordings and Upcoming Meetings Section
-            if !isSidebarCollapsed {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 0) {
-                        // Recordings Section Header
-                        Button(action: {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                isRecordingsExpanded.toggle()
-                            }
-                        }) {
-                            HStack {
-                                Text("Recordings")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(Color(hex: "A9A9A9"))
-
-                                Spacer()
-
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(Color(hex: "A9A9A9"))
-                                    .rotationEffect(.degrees(isRecordingsExpanded ? 90 : 0))
-                            }
-                            .padding(.horizontal, 10)
-                            .padding(.top, 12)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-
-                        // Recordings List
-                        if isRecordingsExpanded {
+                if isRecordingsExpanded {
+                    ScrollView {
+                        VStack(spacing: 2) {
                             if recorder.recordings.isEmpty {
                                 Text("No recordings yet")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(Color(hex: "A9A9A9"))
-                                    .padding(.horizontal, 10)
+                                    .font(Theme.body(12))
+                                    .foregroundStyle(Theme.foregroundMuted)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 16)
                                     .padding(.top, 8)
                             } else {
-                                VStack(spacing: 0) {
-                                    ForEach(recorder.recordings, id: \.self) { url in
-                                        Button {
-                                            selectedRecordingURL = url
-                                            showWelcome = false
-                                        } label: {
-                                            HStack {
-                                                Text(cleanName(from: url))
-                                                    .font(.system(size: 12))
-                                                    .foregroundStyle(.black)
-                                                    .lineLimit(1)
-
-                                                Spacer()
-
-                                                Text(formatDuration(for: url))
-                                                    .font(.system(size: 12))
-                                                    .foregroundStyle(Color(hex: "A9A9A9"))
-                                            }
-                                            .frame(maxWidth: .infinity, alignment: .leading)
-                                            .frame(height: 30)
-                                            .padding(.horizontal, 10)
-                                            .background(selectedRecordingURL == url ? Color.accentColor.opacity(0.1) : Color.clear)
-                                            .cornerRadius(6)
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
+                                ForEach(recorder.recordings, id: \.self) { url in
+                                    sidebarRecordingRow(url: url)
                                 }
-                                .padding(.top, 4)
                             }
                         }
+                        .padding(.horizontal, 8)
+                        .padding(.top, 4)
                     }
                 }
+            } else {
+                Spacer()
             }
 
-            Spacer()
+            Spacer(minLength: 0)
 
-            // Settings Button
-            Button {
-                showSettings = true
-            } label: {
-                if isSidebarCollapsed {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.black)
-                        .frame(height: 30)
-                        .frame(maxWidth: .infinity)
-                } else {
+            // Footer: Quick Record CTA + Settings
+            VStack(spacing: 12) {
+                Button(action: startOrStopRecording) {
                     HStack(spacing: 8) {
-                        Image(systemName: "gearshape")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.black)
+                        Image(systemName: recorder.isRecording ? "stop.fill" : "circle.fill")
+                            .font(.system(size: 11, weight: .bold))
 
-                        Text("Settings")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.black)
-
-                        Spacer()
+                        if !isSidebarCollapsed {
+                            Text(recorder.isRecording ? "Stop Recording" : "Quick Record")
+                                .font(Theme.body(13, weight: .semibold))
+                        }
                     }
-                    .frame(height: 30)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 10)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(
+                        Capsule().fill(recorder.isRecording ? Theme.danger : Theme.accentPrimary)
+                    )
                 }
+                .buttonStyle(.plain)
+
+                Button { showSettings = true } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "gearshape")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(Theme.foregroundSecondary)
+
+                        if !isSidebarCollapsed {
+                            Text("Settings")
+                                .font(Theme.body(13))
+                                .foregroundStyle(Theme.foregroundSecondary)
+
+                            Spacer()
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity, alignment: isSidebarCollapsed ? .center : .leading)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 10)
-            .padding(.bottom, 10)
+            .padding(.horizontal, 12)
+            .padding(.bottom, 16)
         }
-        .frame(width: isSidebarCollapsed ? 50 : 300)
-        .background(Color(hex: "F9F9F9"))
+        .frame(width: isSidebarCollapsed ? 64 : 240)
+        .background(Theme.surfaceSecondary)
+        .overlay(alignment: .trailing) {
+            Rectangle()
+                .fill(Theme.borderSubtle)
+                .frame(width: 1)
+        }
+    }
+
+    @ViewBuilder
+    private func sidebarRecordingRow(url: URL) -> some View {
+        let isSelected = selectedRecordingURL == url
+        Button {
+            selectedRecordingURL = url
+            showWelcome = false
+        } label: {
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(isSelected ? Theme.accentPrimary : Theme.foregroundMuted.opacity(0.6))
+                    .frame(width: 6, height: 6)
+
+                Text(cleanName(from: url))
+                    .font(Theme.body(13, weight: isSelected ? .semibold : .regular))
+                    .foregroundStyle(isSelected ? Theme.foregroundPrimary : Theme.foregroundSecondary)
+                    .lineLimit(1)
+
+                Spacer(minLength: 6)
+
+                Text(formatDuration(for: url))
+                    .font(Theme.mono(11, weight: .medium))
+                    .foregroundStyle(Theme.foregroundMuted)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                    .fill(isSelected ? Theme.accentSubtle : Color.clear)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     private var mainContent: some View {
         ZStack {
-            Color.white
+            Theme.surfacePrimary
                 .ignoresSafeArea()
 
             if showWelcome {
@@ -337,8 +258,8 @@ struct ContentView: View {
                 WelcomeView(startAction: startOrStopRecording)
             } else {
                 Text("Select a recording to view details.")
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
+                    .font(Theme.body(15))
+                    .foregroundStyle(Theme.foregroundSecondary)
             }
         }
     }
@@ -436,36 +357,63 @@ private struct WelcomeView: View {
     let startAction: () -> Void
 
     var body: some View {
-        VStack(spacing: 24) {
-            Image(nsImage: NSImage(named: "AppIcon") ?? NSImage())
-                .resizable()
-                .scaledToFit()
-                .frame(width: 80, height: 80)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
+        VStack(spacing: Theme.Spacing.lg) {
+            ZStack {
+                Circle()
+                    .fill(Theme.accentSubtle)
+                    .frame(width: 96, height: 96)
 
-            VStack(spacing: 8) {
+                Image(systemName: "mic.fill")
+                    .font(.system(size: 36, weight: .bold))
+                    .foregroundStyle(Theme.accentPrimary)
+            }
+
+            VStack(spacing: Theme.Spacing.sm) {
                 Text("Welcome to Minutly")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                Text("Capture your meetings, transcribe conversations, and generate summaries from one dashboard.")
-                    .font(.body)
+                    .font(Theme.heading(40, weight: .bold))
+                    .foregroundStyle(Theme.foregroundPrimary)
+
+                Text("Capture your meetings, transcribe conversations, and generate summaries — all from one dashboard.")
+                    .font(Theme.body(15))
                     .multilineTextAlignment(.center)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: 480)
+                    .foregroundStyle(Theme.foregroundSecondary)
+                    .frame(maxWidth: 520)
+                    .lineSpacing(2)
             }
 
             Button(action: startAction) {
-                Label("Start Recording", systemImage: "circle.circle.fill")
-                    .font(.headline)
-                    .padding(.horizontal, 32)
-                    .padding(.vertical, 14)
-                    .background(Color.accentColor)
-                    .foregroundStyle(.white)
-                    .cornerRadius(14)
+                HStack(spacing: 8) {
+                    Image(systemName: "circle.fill")
+                        .font(.system(size: 11, weight: .bold))
+                    Text("Start Recording")
+                        .font(Theme.body(14, weight: .semibold))
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 28)
+                .padding(.vertical, 14)
+                .background(Capsule().fill(Theme.accentPrimary))
             }
             .buttonStyle(.plain)
+            .padding(.top, Theme.Spacing.sm)
+
+            HStack(spacing: 28) {
+                trustBadge(icon: "lock.shield", label: "AES-256 Encryption")
+                trustBadge(icon: "key", label: "Keychain Storage")
+                trustBadge(icon: "eye.slash", label: "No Telemetry")
+            }
+            .padding(.top, Theme.Spacing.lg)
         }
         .padding(40)
+    }
+
+    private func trustBadge(icon: String, label: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 11))
+            Text(label)
+                .font(Theme.body(12))
+        }
+        .foregroundStyle(Theme.foregroundMuted)
     }
 }
 
@@ -485,6 +433,7 @@ private struct RecordingDetailView: View {
     @State private var decryptedAudioTempURL: URL?
 
     @State private var selectedTab: DetailTab = .transcript
+    @State private var claudePromptCopied = false
     @State private var transcriptionText: String?
     @State private var isTranscribing = false
     @State private var transcriptionProgress: Double = 0.0
@@ -531,7 +480,7 @@ private struct RecordingDetailView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .padding(32)
-        .background(Color.white)
+        .background(Theme.surfacePrimary)
         .onAppear {
             transcriptionText = transcriptionService.loadTranscription(for: url)
             summary = transcriptionService.loadSummary(for: url)
@@ -591,6 +540,14 @@ private struct RecordingDetailView: View {
                     Image(systemName: "folder")
                 }
                 .buttonStyle(.plain)
+
+                Button(action: askClaude) {
+                    Image(systemName: claudePromptCopied ? "checkmark.circle" : "sparkles")
+                        .foregroundColor(claudePromptCopied ? Theme.success : Theme.accentPrimary)
+                }
+                .buttonStyle(.plain)
+                .disabled(!ClaudeMCP.isAvailable)
+                .help("Ask Claude about this meeting — copies a prompt and opens Claude. Set up in Settings → MCP.")
 
                 Button(role: .destructive) {
                     recorder.deleteRecording(at: url)
@@ -685,10 +642,13 @@ private struct RecordingDetailView: View {
                         }
                         .buttonStyle(.plain)
 
-                        // Show Settings button if error is API key related
-                        if let error = transcriptionError, error.contains("API key") {
+                        // Every transcription error is fixed in Settings, so always offer the door
+                        if let error = transcriptionError {
                             Button(action: {
-                                NotificationCenter.default.post(name: .openSettingsAPI, object: nil)
+                                NotificationCenter.default.post(
+                                    name: error.contains("API key") ? .openSettingsAPI : .openSettings,
+                                    object: nil
+                                )
                             }) {
                                 Label("Open Settings", systemImage: "gear")
                                     .font(.headline)
@@ -716,11 +676,20 @@ private struct RecordingDetailView: View {
                     Text("Summary")
                         .font(.headline)
                     Spacer()
+                    Button(action: askClaude) {
+                        Label(claudePromptCopied ? "Copied — paste in Claude" : "Ask Claude",
+                              systemImage: claudePromptCopied ? "checkmark" : "sparkles")
+                    }
+                    .disabled(!ClaudeMCP.isAvailable)
+                    .help("Copies a prompt naming this meeting, then opens Claude. Claude reads the summary and transcript over MCP — set up in Settings → MCP.")
                     Button("Copy") {
                         copySummaryToClipboard(summary)
                     }
                     Button("Export") {
                         exportSummary()
+                    }
+                    Button("Delete") {
+                        deleteSummary()
                     }
                 }
                 SummaryView(summary: summary, onExport: exportSummary)
@@ -947,6 +916,14 @@ private struct RecordingDetailView: View {
         transcriptionText = nil
     }
 
+    private func deleteSummary() {
+        // ponytail: no confirmation alert — the summary is regenerable from the
+        // transcript in one click. Add one if regeneration ever costs real money.
+        try? transcriptionService.deleteSummary(for: url)
+        summary = nil
+        summaryError = nil
+    }
+
     private func exportTranscription() {
         guard let text = transcriptionText else { return }
 
@@ -984,6 +961,12 @@ private struct RecordingDetailView: View {
                 }
             }
         }
+    }
+
+    private func askClaude() {
+        ClaudeMCP.ask(about: url.deletingPathExtension().lastPathComponent)
+        claudePromptCopied = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { claudePromptCopied = false }
     }
 
     private func copySummaryToClipboard(_ summary: ConversationSummary) {

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import FluidAudio
 
 // Language model
 struct Language: Identifiable, Equatable {
@@ -41,17 +42,22 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var assemblyAIKey: String = ""
     @State private var openAIKey: String = ""
-    @AppStorage("transcriptionProvider") private var transcriptionProvider: String = "apple"
+    @AppStorage("transcriptionProvider") private var transcriptionProvider: String = "parakeet"
     @AppStorage("transcriptionLanguages") private var transcriptionLanguagesString: String = "en"
     @AppStorage("enableMeetingDetection") private var enableMeetingDetection = false
     @AppStorage("enableMenuBarMode") private var enableMenuBarMode = false
     @AppStorage("onboardingCompleted") private var onboardingCompleted = false
     @State private var showRestartAlert = false
+    @State private var claudeCopied: String?
     @State private var showOnboardingResetAlert = false
     @State private var selectedSection: SettingsSection
     @State private var loadingKeys = true
     @State private var languageSearchText = ""
     @State private var selectedLanguages: [Language] = []
+    @ObservedObject private var parakeet = ParakeetTranscriptionService.shared
+    @AppStorage("parakeetSpeakerID") private var parakeetSpeakerID = true
+    @ObservedObject private var voiceProfiles = VoiceProfileStore.shared
+    @State private var parakeetError: String?
 
     // Summary settings
     @AppStorage("summaryModel") private var summaryModel: String = "gpt-3.5-turbo"
@@ -71,7 +77,9 @@ struct SettingsView: View {
         case general = "General"
         case meetingDetection = "Meeting Detection"
         case transcription = "Transcription"
+        case voices = "Voices"
         case summary = "Summary"
+        case mcp = "MCP"
         case api = "API"
 
         var id: String { rawValue }
@@ -228,8 +236,12 @@ struct SettingsView: View {
             return "General"
         case .transcription:
             return "Transcription"
+        case .voices:
+            return "Voices"
         case .summary:
             return "Summary"
+        case .mcp:
+            return "MCP"
         case .api:
             return "API"
         }
@@ -245,8 +257,12 @@ struct SettingsView: View {
                     meetingDetectionSection
                 case .transcription:
                     transcriptionSection
+                case .voices:
+                    voicesSection
                 case .summary:
                     summarySection
+                case .mcp:
+                    mcpSection
                 case .api:
                     apiSection
                 }
@@ -343,21 +359,21 @@ struct SettingsView: View {
                 .font(.title2)
                 .fontWeight(.bold)
 
-            Toggle("Auto-detect meetings from Calendar", isOn: $enableMeetingDetection)
+            Toggle("Detect when a meeting starts", isOn: $enableMeetingDetection)
 
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Image(systemName: "calendar.badge.clock")
+                    Image(systemName: "video.badge.checkmark")
                         .foregroundStyle(.blue)
                     Text("How it works")
                         .font(.headline)
                 }
 
                 Text("""
-                • Monitors macOS Calendar for upcoming meetings
-                • Notifies you 2 minutes before a meeting starts
-                • Starts a 30-second pre-buffer when confirmed
-                • Keeps the last 30 seconds before recording
+                • Detects when Zoom, Teams, Google Meet or another app opens your microphone
+                • Sends a notification the moment the call starts
+                • Recording begins only when you confirm — nothing is captured before that
+                • Works for ad-hoc calls, not just ones on your calendar
                 """)
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -385,6 +401,7 @@ struct SettingsView: View {
 
             Picker("Provider", selection: $transcriptionProvider) {
                 Text("Apple Speech (Free, No Speaker ID)").tag("apple")
+                Text("Parakeet v3 (Free, Local, 25 Languages)").tag("parakeet")
                 Text("AssemblyAI (Paid, Speaker ID)").tag("assemblyai")
                 Text("OpenAI Whisper (Paid, High Accuracy)").tag("openai")
             }
@@ -411,6 +428,16 @@ struct SettingsView: View {
                     title: "AssemblyAI Cloud",
                     description: "Supports 99+ languages, offers speaker diarization, and has higher accuracy. Requires an AssemblyAI API key."
                 )
+            case "parakeet":
+                infoBlock(
+                    icon: "cpu",
+                    color: .green,
+                    title: "Parakeet TDT v3 — On-Device",
+                    description: "NVIDIA's Parakeet running locally on the Neural Engine. Free, no API key, nothing leaves your Mac. Covers 25 European languages and is far more accurate than Apple Speech. Requires a one-time ~600 MB model download."
+                )
+                Toggle("Identify speakers", isOn: $parakeetSpeakerID)
+                    .help("Adds a local diarization model (~35 MB, downloaded on first use) to label who said what. Slower, and less accurate than AssemblyAI.")
+                parakeetModelRow
             case "openai":
                 infoBlock(
                     icon: "sparkles",
@@ -837,6 +864,165 @@ struct SettingsView: View {
                         .foregroundStyle(.orange)
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var parakeetModelRow: some View {
+        if parakeet.isDownloading {
+            VStack(alignment: .leading, spacing: 4) {
+                ProgressView(value: parakeet.downloadProgress)
+                Text("Downloading… \(Int(parakeet.downloadProgress * 100))%")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } else if parakeet.isDownloaded {
+            HStack {
+                Label("Model installed", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                Spacer()
+                Button("Delete Model", role: .destructive) {
+                    parakeetError = nil
+                    do { try parakeet.deleteModel() } catch { parakeetError = error.localizedDescription }
+                }
+            }
+        } else {
+            Button("Download Model (~600 MB)") {
+                parakeetError = nil
+                Task {
+                    do { try await parakeet.prepare() } catch { parakeetError = error.localizedDescription }
+                }
+            }
+            .buttonStyle(.borderedProminent)
+        }
+
+        if let parakeetError {
+            Text(parakeetError)
+                .font(.caption)
+                .foregroundStyle(.red)
+        }
+    }
+
+    private var voicesSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Voices")
+                .font(.title2)
+                .fontWeight(.bold)
+
+            Text("Voices you've named under a transcript. Minutly recognises them in future meetings and labels them by name instead of \"Speaker 1\". Voice profiles never leave this Mac.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            if !parakeetSpeakerID {
+                infoBlock(
+                    icon: "exclamationmark.triangle.fill",
+                    color: .orange,
+                    title: "Speaker Identification Is Off",
+                    description: "Turn on \"Identify speakers\" under Transcription, otherwise transcripts won't be split by voice and there's nothing to name."
+                )
+            }
+
+            Divider()
+
+            if voiceProfiles.speakers.isEmpty {
+                infoBlock(
+                    icon: "person.wave.2",
+                    color: .blue,
+                    title: "No Voices Yet",
+                    description: "Transcribe a meeting, then use \"Who's speaking?\" below the transcript to play each unknown voice and give it a name."
+                )
+            }
+
+            ForEach(voiceProfiles.speakers) { speaker in
+                HStack {
+                    Label(speaker.name, systemImage: "person.wave.2.fill")
+                    Spacer()
+                    Button("Remove", role: .destructive) { voiceProfiles.remove(speaker) }
+                        .buttonStyle(.link)
+                }
+            }
+        }
+        .padding(.leading, 16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var mcpSection: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("MCP")
+                .font(.title2)
+                .fontWeight(.bold)
+
+            infoBlock(
+                icon: "sparkles",
+                color: .purple,
+                title: "Work on your minutes in an AI assistant",
+                description: "Minutly ships a small MCP server that lets an assistant list your meetings, read their summaries and search every transcript — no copy-paste, always up to date. Nothing is uploaded: the server runs locally and only reads files already on this Mac. Set it up once below."
+            )
+
+            if ClaudeMCP.isAvailable {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("1. Allow Claude to read your recordings")
+                            .font(.headline)
+                        Spacer()
+                        Button("Open Settings") {
+                            ClaudeMCP.openFullDiskAccessSettings()
+                        }
+                    }
+                    Text("macOS hides Minutly's folder from other apps. Turn on Full Disk Access for Claude, otherwise it will connect but find no meetings.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(ClaudeMCP.dataFolder)
+                        .font(.system(.caption, design: .monospaced))
+                        .textSelection(.enabled)
+                        .foregroundStyle(.secondary)
+                }
+
+                copyRow(
+                    title: "2. Add Minutly to Claude Desktop",
+                    hint: "Paste this inside \"mcpServers\" in \(ClaudeMCP.desktopConfigPath), then quit Claude with ⌘Q and reopen it.",
+                    value: ClaudeMCP.desktopConfigSnippet
+                )
+
+                Text("MCP is an open standard — the same block works in Cursor, ChatGPT desktop, Zed and other MCP clients, in their own config file. Each one needs Full Disk Access too.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                infoBlock(
+                    icon: "exclamationmark.triangle",
+                    color: .orange,
+                    title: "Server script missing",
+                    description: "minutly_mcp.py was not found in the app bundle. Reinstall Minutly."
+                )
+            }
+        }
+        .padding(.leading, 16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func copyRow(title: String, hint: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(title).font(.headline)
+                Spacer()
+                Button(claudeCopied == title ? "Copied" : "Copy") {
+                    ClaudeMCP.copyToClipboard(value)
+                    claudeCopied = title
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        if claudeCopied == title { claudeCopied = nil }
+                    }
+                }
+            }
+            Text(hint)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.system(.caption, design: .monospaced))
+                .textSelection(.enabled)
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.gray.opacity(0.1))
+                .cornerRadius(8)
         }
     }
 

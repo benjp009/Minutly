@@ -25,6 +25,7 @@ Minutly is a native macOS application built with SwiftUI that provides intellige
    - Apple Speech Recognition (free, offline, no speaker ID) - built into TranscriptionService.swift
    - AssemblyAI (paid, speaker diarization, 99+ languages) - via AssemblyAIService.swift
    - OpenAI Whisper (paid, high accuracy) - via OpenAITranscriptionService.swift
+   - Parakeet TDT 0.6b v3 (free, local CoreML/ANE, 25 European languages) - via ParakeetTranscriptionService.swift; ~600 MB model downloaded on demand from HuggingFace. Speaker ID is optional and comes from FluidAudio's separate diarizer (~35 MB), merged onto Parakeet word timings. Unnamed voices are offered under the transcript with a 5s playable sample (SpeakerSampleStore, `<audio>_speakers.json`); naming one saves its voiceprint to VoiceProfileStore (`com.minutly/voice_profiles.json`) so later meetings label that person automatically
    - Provider selected via `transcriptionProvider` UserDefaults key
 
 3. **AI Summarization**
@@ -34,9 +35,12 @@ Minutly is a native macOS application built with SwiftUI that provides intellige
    - Cost-effective (~$0.001-0.002 per summary)
 
 4. **Meeting Detection**
-   - CalendarMonitorService: polls EventKit every 30 seconds for upcoming meetings, sends UNUserNotification alerts
+   - MeetingAppDetector: polls CoreAudio process objects (`kAudioHardwarePropertyProcessObjectList` → `kAudioProcessPropertyIsRunningInput` + `kAudioProcessPropertyBundleID`, macOS 14.4+) every 3 seconds to see which app is capturing the mic. Zoom/Teams/Meet opening the mic means a call actually started — including ad-hoc ones never put on a calendar
+   - Bundle IDs are matched by **prefix**, because browsers and Electron apps capture from helper processes (`com.google.Chrome.helper`, `com.microsoft.teams2.helper`). Sets are keyed by display name so an app plus its helpers count as one meeting
+   - Fires a UNUserNotification with Start Recording / Ignore; `MeetingAppDetector` is also the app's only `UNUserNotificationCenterDelegate`
+   - No pre-buffering — recording starts only after the user confirms, so nothing is captured before consent
+   - Owned by `AppState` (not a view) so detection survives the main window closing
    - MeetingConfirmationManager: records user consent/decline per meeting, persists to disk with 24-hour expiry
-   - Auto-starts pre-buffering when confirmed
 
 5. **Plan Selection**
    - 3 subscription tiers: Free (0 EUR), Be in Control (9 EUR/month, BYOK), All In (18 EUR/month, managed keys)
@@ -84,7 +88,7 @@ Minutly/
 │   └── CloudDataDeletionService.swift  # GDPR deletion requests + audit trail
 │
 ├── Meeting Detection
-│   ├── CalendarMonitorService.swift    # EventKit polling + notification delivery (primary engine)
+│   ├── MeetingAppDetector.swift        # CoreAudio mic-usage polling + notification + delegate (primary engine)
 │   ├── MeetingConfirmationManager.swift # User consent persistence + audit
 │   └── CloudUploadConsentView.swift    # User consent flow UI
 │
@@ -214,9 +218,10 @@ RegressionTests.swift contains 6 tests. See [REGRESSION_TESTS.md](REGRESSION_TES
 ## User Defaults Keys
 
 ### Core Settings
-- `transcriptionProvider` - Selected provider (`"apple"`, `"assemblyai"`, `"openai"`) - default: `"apple"`
+- `transcriptionProvider` - Selected provider (`"apple"`, `"parakeet"`, `"assemblyai"`, `"openai"`) - default: `"apple"`
 - `transcriptionLanguages` - Comma-separated language codes (e.g., `"en"`, `"fr,en"`) - default: `"en"`
-- `enableMeetingDetection` - Calendar integration toggle
+- `parakeetSpeakerID` - Run local diarization alongside Parakeet - default: `true`
+- `enableMeetingDetection` - Detect calls starting in Zoom/Teams/Meet via mic usage (read live by AppState, applies immediately)
 - `enableMenuBarMode` - Menu bar vs dock mode
 
 ### Summarization Settings
@@ -261,11 +266,11 @@ The app uses native frameworks only:
 - AVFoundation (Audio)
 - Speech (Apple Speech Recognition)
 - CryptoKit (Encryption)
-- EventKit (Calendar)
+- CoreAudio (per-process mic usage for meeting detection)
 - Security (Keychain)
 - UserNotifications (Meeting alerts)
 
-No third-party package dependencies required.
+One SPM dependency: [FluidAudio](https://github.com/FluidInference/FluidAudio) (pinned 0.15.5) for local Parakeet TDT CoreML transcription.
 
 ## Git Workflow
 
